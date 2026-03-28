@@ -1,297 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>APF Drone Swarm Sim</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APF Drone Swarm</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  :root {
-    --bg:       #04060f;
-    --panel-bg: rgba(6, 12, 30, 0.88);
-    --border:   rgba(64, 140, 255, 0.25);
-    --accent:   #3af;
-    --accent2:  #4f8;
-    --danger:   #f54;
-    --text:     #b8ccee;
-    --dim:      #556;
-    --mono:     'Share Tech Mono', monospace;
-    --sans:     'Exo 2', sans-serif;
-  }
+    body {
+        background: #000;
+        overflow: hidden;
+        font-family: 'Share Tech Mono', monospace;
+        color: #00ffe7;
+        user-select: none;
+    }
 
-  html, body {
-    width: 100%; height: 100%;
-    background: var(--bg);
-    overflow: hidden;
-    font-family: var(--sans);
-    color: var(--text);
-  }
+    #canvas-container {
+        width: 100vw; height: 100vh;
+        cursor: grab;
+    }
+    #canvas-container:active { cursor: grabbing; }
 
-  canvas { display: block; }
+    /* Scanline overlay */
+    #canvas-container::after {
+        content: '';
+        position: fixed; inset: 0;
+        background: repeating-linear-gradient(to bottom,
+            transparent 0px, transparent 3px,
+            rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px);
+        pointer-events: none;
+        z-index: 10;
+    }
 
-  /* ---- HUD ---- */
-  #hud {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none;
-    z-index: 10;
-  }
+    /* HUD Panel (top-left) */
+    #hud {
+        position: fixed; top: 24px; left: 24px; z-index: 20;
+        background: rgba(0, 8, 20, 0.85);
+        border: 1px solid rgba(0, 255, 231, 0.3);
+        border-left: 3px solid #00ffe7;
+        padding: 16px 20px;
+        min-width: 250px;
+        backdrop-filter: blur(8px);
+    }
+    #hud h1 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 11px; font-weight: 900;
+        letter-spacing: 0.25em;
+        color: #00ffe7;
+        margin-bottom: 14px;
+        text-transform: uppercase;
+    }
+    .hud-row {
+        display: flex; justify-content: space-between; gap: 20px;
+        font-size: 11px; margin-bottom: 6px; letter-spacing: 0.05em;
+    }
+    .hud-label { color: rgba(0, 255, 231, 0.5); display: flex; align-items: center; gap: 6px; }
+    .hud-val { color: #fff; font-weight: bold; }
+    .hud-divider {
+        border: none;
+        border-top: 1px solid rgba(0, 255, 231, 0.15);
+        margin: 10px 0;
+    }
 
-  .panel {
-    pointer-events: all;
-    position: absolute;
-    background: var(--panel-bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px 18px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 0 30px rgba(40,100,255,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
-  }
+    .drone-dot {
+        display: inline-block; width: 8px; height: 8px;
+        border-radius: 50%; flex-shrink: 0;
+    }
 
-  /* Top-left: title + controls */
-  #ctrl-panel {
-    top: 20px; left: 20px;
-    min-width: 240px;
-  }
+    .section-head {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 8px; letter-spacing: 0.2em;
+        color: rgba(0, 255, 231, 0.35);
+        margin: 8px 0 4px;
+        text-transform: uppercase;
+    }
 
-  .panel-title {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-  }
+    #status-text {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 9px; letter-spacing: 0.15em;
+        margin-top: 10px; color: #00ffe7;
+    }
+    #status-text.arrived { color: #00ff88; }
+    #status-text.navigating { color: #ffcc00; }
 
-  .btn-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    /* APF Forces (bottom-left) */
+    #apf-panel {
+        position: fixed; bottom: 80px; left: 24px; z-index: 20;
+        background: rgba(0, 8, 20, 0.85);
+        border: 1px solid rgba(0, 255, 231, 0.3);
+        border-left: 3px solid rgba(0, 255, 231, 0.4);
+        padding: 14px 18px;
+        min-width: 200px;
+        backdrop-filter: blur(8px);
+    }
+    #apf-panel h2 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 9px; letter-spacing: 0.2em;
+        color: rgba(0, 255, 231, 0.6);
+        margin-bottom: 10px;
+    }
+    .bar-row { margin: 6px 0; }
+    .bar-label {
+        font-size: 10px; color: rgba(0, 255, 231, 0.5);
+        display: flex; justify-content: space-between;
+        margin-bottom: 3px;
+    }
+    .bar-label span:last-child { color: #fff; }
+    .bar-bg { height: 4px; background: rgba(0, 255, 231, 0.08); border-radius: 2px; }
+    .bar-fill { height: 100%; border-radius: 2px; transition: width 0.1s; }
 
-  .btn {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 1px;
-    padding: 7px 16px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: rgba(40,80,180,0.2);
-    color: var(--text);
-    cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
-    text-transform: uppercase;
-  }
-  .btn:hover { background: rgba(60,120,255,0.3); border-color: rgba(100,180,255,0.5); }
-  .btn.go { background: rgba(20,180,80,0.2); border-color: rgba(60,220,120,0.4); color: var(--accent2); }
-  .btn.go:hover { background: rgba(30,200,100,0.35); }
-  .btn.go.active { background: rgba(200,80,20,0.2); border-color: rgba(255,120,60,0.4); color: var(--danger); }
+    /* Controls (bottom center) */
+    #controls {
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        z-index: 20; display: flex; gap: 10px; align-items: center;
+        background: rgba(0, 8, 20, 0.85);
+        border: 1px solid rgba(0, 255, 231, 0.25);
+        padding: 12px 20px;
+        backdrop-filter: blur(8px);
+    }
+    .btn {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 9px; font-weight: 700;
+        letter-spacing: 0.2em; padding: 8px 18px;
+        border: 1px solid rgba(0, 255, 231, 0.4);
+        background: transparent; color: #00ffe7;
+        cursor: pointer; text-transform: uppercase;
+        transition: all 0.15s;
+    }
+    .btn:hover {
+        background: rgba(0, 255, 231, 0.1);
+        border-color: #00ffe7;
+        box-shadow: 0 0 12px rgba(0, 255, 231, 0.3);
+    }
+    .btn.active {
+        background: rgba(0, 255, 231, 0.15);
+        border-color: #00ffe7;
+        box-shadow: 0 0 16px rgba(0, 255, 231, 0.4);
+    }
+    .btn-reset { border-color: rgba(255, 80, 80, 0.4); color: #ff5555; }
+    .btn-reset:hover {
+        background: rgba(255, 80, 80, 0.1);
+        border-color: #ff5555;
+        box-shadow: 0 0 12px rgba(255, 80, 80, 0.3);
+    }
+    .speed-label {
+        font-size: 10px; letter-spacing: 0.1em;
+        color: rgba(0, 255, 231, 0.5); margin-left: 8px;
+    }
+    #speed-input {
+        width: 80px; -webkit-appearance: none;
+        height: 3px; background: rgba(0, 255, 231, 0.2);
+        outline: none; cursor: pointer; border-radius: 2px;
+    }
+    #speed-input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 12px; height: 12px;
+        background: #00ffe7; border-radius: 50%;
+        box-shadow: 0 0 8px #00ffe7;
+    }
 
-  /* Stats */
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 0;
-    border-bottom: 1px solid rgba(64,140,255,0.08);
-  }
-  .stat-row:last-child { border-bottom: none; }
-  .stat-label {
-    font-size: 10px; color: var(--dim); letter-spacing: 1px;
-    text-transform: uppercase; font-family: var(--mono);
-    display: flex; align-items: center; gap: 5px;
-  }
-  .stat-val { font-size: 12px; font-family: var(--mono); color: #cce; }
-  .stat-val.accent { color: var(--accent); }
-  .stat-val.good { color: var(--accent2); }
-  .stat-val.warn { color: #fa4; }
+    /* Legend (top-right) */
+    #legend {
+        position: fixed; top: 24px; right: 24px; z-index: 20;
+        background: rgba(0, 8, 20, 0.85);
+        border: 1px solid rgba(0, 255, 231, 0.2);
+        border-right: 3px solid rgba(0, 255, 231, 0.4);
+        padding: 14px 18px;
+        backdrop-filter: blur(8px);
+        font-size: 10px; letter-spacing: 0.08em;
+    }
+    #legend h2 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 9px; letter-spacing: 0.2em;
+        color: rgba(0, 255, 231, 0.6);
+        margin-bottom: 10px;
+    }
+    .legend-row {
+        display: flex; align-items: center; gap: 8px;
+        margin-bottom: 6px; color: rgba(255, 255, 255, 0.7);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-  .drone-dot {
-    display: inline-block; width: 8px; height: 8px;
-    border-radius: 50%; flex-shrink: 0;
-  }
+    /* Hint */
+    .hint {
+        position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+        z-index: 20; font-size: 9px; letter-spacing: 0.12em;
+        color: rgba(0, 255, 231, 0.35);
+    }
 
-  /* swarm section divider */
-  .section-label {
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: var(--dim);
-    text-transform: uppercase;
-    margin: 8px 0 4px;
-  }
-
-  /* Bottom-right: legend */
-  #legend-panel {
-    bottom: 20px; right: 20px;
-    min-width: 190px;
-  }
-
-  .legend-item {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 11px; color: var(--text);
-    padding: 3px 0;
-    font-family: var(--mono);
-  }
-  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
-  /* Bottom-left: APF info */
-  #apf-panel {
-    bottom: 20px; left: 20px;
-    min-width: 200px;
-  }
-  .bar-row { margin: 4px 0; }
-  .bar-label { font-size: 10px; color: var(--dim); font-family: var(--mono); display: flex; justify-content: space-between; margin-bottom: 3px; }
-  .bar-bg { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; }
-  .bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.1s; }
-
-  /* Top-right: drag hint */
-  #hint {
-    top: 20px; right: 20px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 1px;
-    line-height: 1.8;
-    padding: 10px 14px;
-    pointer-events: none;
-  }
-
-  /* Goal overlay */
-  #goal-overlay {
-    position: fixed; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: none;
-    opacity: 0; transition: opacity 1.2s ease;
-    z-index: 20;
-  }
-  #goal-overlay.visible { opacity: 1; }
-  .goal-box {
-    text-align: center;
-    animation: goalPulse 2s ease-in-out infinite;
-  }
-  .goal-title {
-    font-family: var(--mono);
-    font-size: 42px;
-    letter-spacing: 8px;
-    color: var(--accent2);
-    text-shadow: 0 0 40px var(--accent2), 0 0 80px rgba(68,255,136,0.3);
-    text-transform: uppercase;
-  }
-  .goal-sub {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: rgba(100,220,150,0.6);
-    letter-spacing: 4px;
-    margin-top: 8px;
-  }
-  @keyframes goalPulse {
-    0%,100% { transform: scale(1); }
-    50% { transform: scale(1.04); }
-  }
-
-  /* Scan line effect */
-  #scanlines {
-    position: fixed; inset: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.03) 2px,
-      rgba(0,0,0,0.03) 4px
-    );
-    z-index: 5;
-  }
+    /* Goal overlay */
+    #goal-overlay {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        pointer-events: none; opacity: 0;
+        transition: opacity 1.2s ease; z-index: 30;
+    }
+    #goal-overlay.visible { opacity: 1; }
+    .goal-box { text-align: center; animation: goalPulse 2s ease-in-out infinite; }
+    .goal-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 42px; font-weight: 900;
+        letter-spacing: 8px; color: #00ff88;
+        text-shadow: 0 0 40px #00ff88, 0 0 80px rgba(0,255,136,0.3);
+        text-transform: uppercase;
+    }
+    .goal-sub {
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 12px; color: rgba(0, 255, 136, 0.6);
+        letter-spacing: 4px; margin-top: 8px;
+    }
+    @keyframes goalPulse {
+        0%,100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+    }
 </style>
 </head>
 <body>
 
-<canvas id="c"></canvas>
-<div id="scanlines"></div>
+<div id="canvas-container"></div>
 
 <div id="hud">
-
-  <!-- Controls -->
-  <div class="panel" id="ctrl-panel">
-    <div class="panel-title">◈ APF Drone Swarm</div>
-    <div class="btn-row">
-      <button class="btn go" id="btnStart">▶ Launch</button>
-      <button class="btn" id="btnReset">↺ Reset</button>
+    <h1>◈ APF Drone Swarm</h1>
+    <div class="hud-row"><span class="hud-label">STATUS</span><span class="hud-val" id="sStatus">STANDBY</span></div>
+    <div class="hud-row"><span class="hud-label">ARRIVED</span><span class="hud-val" id="sArrived">0 / 4</span></div>
+    <hr class="hud-divider">
+    <div class="section-head">Swarm Units</div>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#44ddff;box-shadow:0 0 5px #44ddff"></span> ALPHA</span>
+        <span class="hud-val" id="sDrone0">STANDBY</span>
     </div>
-    <div class="stat-row">
-      <span class="stat-label">Status</span>
-      <span class="stat-val accent" id="sStatus">STANDBY</span>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#ff8844;box-shadow:0 0 5px #ff8844"></span> BETA</span>
+        <span class="hud-val" id="sDrone1">STANDBY</span>
     </div>
-    <div class="stat-row">
-      <span class="stat-label">Arrived</span>
-      <span class="stat-val" id="sArrived">0 / 4</span>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#66ff66;box-shadow:0 0 5px #66ff66"></span> GAMMA</span>
+        <span class="hud-val" id="sDrone2">STANDBY</span>
     </div>
-
-    <div class="section-label">Swarm</div>
-
-    <div class="stat-row">
-      <span class="stat-label"><span class="drone-dot" style="background:#44ddff"></span> ALPHA</span>
-      <span class="stat-val accent" id="sDrone0">STANDBY</span>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#cc66ff;box-shadow:0 0 5px #cc66ff"></span> DELTA</span>
+        <span class="hud-val" id="sDrone3">STANDBY</span>
     </div>
-    <div class="stat-row">
-      <span class="stat-label"><span class="drone-dot" style="background:#ff8844"></span> BETA</span>
-      <span class="stat-val accent" id="sDrone1">STANDBY</span>
-    </div>
-    <div class="stat-row">
-      <span class="stat-label"><span class="drone-dot" style="background:#66ff66"></span> GAMMA</span>
-      <span class="stat-val accent" id="sDrone2">STANDBY</span>
-    </div>
-    <div class="stat-row">
-      <span class="stat-label"><span class="drone-dot" style="background:#cc66ff"></span> DELTA</span>
-      <span class="stat-val accent" id="sDrone3">STANDBY</span>
-    </div>
-  </div>
-
-  <!-- APF forces (ALPHA drone) -->
-  <div class="panel" id="apf-panel">
-    <div class="panel-title">◈ APF Forces · ALPHA</div>
-    <div class="bar-row">
-      <div class="bar-label"><span>Attractive</span><span id="fAtt">0.00</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="bAtt" style="width:0%;background:#3af"></div></div>
-    </div>
-    <div class="bar-row">
-      <div class="bar-label"><span>Repulsive</span><span id="fRep">0.00</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="bRep" style="width:0%;background:#f54"></div></div>
-    </div>
-    <div class="bar-row">
-      <div class="bar-label"><span>Net Force</span><span id="fNet">0.00</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="bNet" style="width:0%;background:#fa4"></div></div>
-    </div>
-  </div>
-
-  <!-- Legend -->
-  <div class="panel" id="legend-panel">
-    <div class="panel-title">◈ Legend</div>
-    <div class="legend-item"><div class="dot" style="background:#44ddff"></div> Alpha drone</div>
-    <div class="legend-item"><div class="dot" style="background:#ff8844"></div> Beta drone</div>
-    <div class="legend-item"><div class="dot" style="background:#66ff66"></div> Gamma drone</div>
-    <div class="legend-item"><div class="dot" style="background:#cc66ff"></div> Delta drone</div>
-    <div class="legend-item"><div class="dot" style="background:#f54"></div> Goal corner</div>
-    <div class="legend-item"><div class="dot" style="background:#fa4"></div> Obstacles</div>
-  </div>
-
-  <!-- Hint -->
-  <div class="panel" id="hint">
-    DRAG · ROTATE<br>
-    SCROLL · ZOOM<br>
-    TOUCH · SUPPORTED
-  </div>
-
+    <div id="status-text">⬡ AWAITING LAUNCH</div>
 </div>
 
-<!-- Goal overlay -->
+<div id="apf-panel">
+    <h2>APF FORCES · ALPHA</h2>
+    <div class="bar-row">
+        <div class="bar-label"><span>Attractive</span><span id="fAtt">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bAtt" style="width:0%;background:#00ffe7"></div></div>
+    </div>
+    <div class="bar-row">
+        <div class="bar-label"><span>Repulsive</span><span id="fRep">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bRep" style="width:0%;background:#ff5555"></div></div>
+    </div>
+    <div class="bar-row">
+        <div class="bar-label"><span>Net Force</span><span id="fNet">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bNet" style="width:0%;background:#ffcc00"></div></div>
+    </div>
+</div>
+
+<div id="legend">
+    <h2>LEGEND</h2>
+    <div class="legend-row"><div class="dot" style="background:#44ddff;box-shadow:0 0 6px #44ddff"></div> Alpha</div>
+    <div class="legend-row"><div class="dot" style="background:#ff8844;box-shadow:0 0 6px #ff8844"></div> Beta</div>
+    <div class="legend-row"><div class="dot" style="background:#66ff66;box-shadow:0 0 6px #66ff66"></div> Gamma</div>
+    <div class="legend-row"><div class="dot" style="background:#cc66ff;box-shadow:0 0 6px #cc66ff"></div> Delta</div>
+    <div class="legend-row"><div class="dot" style="background:#ff4444;box-shadow:0 0 6px #ff4444"></div> Goal</div>
+    <div class="legend-row"><div class="dot" style="background:#ff3333;box-shadow:0 0 6px #ff3333"></div> Obstacles</div>
+</div>
+
+<div id="controls">
+    <button class="btn" id="btnStart">▶ LAUNCH</button>
+    <button class="btn btn-reset" id="btnReset">↺ RESET</button>
+    <span class="speed-label">SPEED</span>
+    <input type="range" id="speed-input" min="0.5" max="5" step="0.1" value="1.0">
+    <span class="speed-label" id="speed-val">1.0×</span>
+</div>
+
+<div class="hint">DRAG TO ORBIT · SCROLL TO ZOOM</div>
+
 <div id="goal-overlay">
-  <div class="goal-box">
-    <div class="goal-title">SWARM ARRIVED</div>
-    <div class="goal-sub">MISSION COMPLETE</div>
-  </div>
+    <div class="goal-box">
+        <div class="goal-title">SWARM ARRIVED</div>
+        <div class="goal-sub">MISSION COMPLETE</div>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -301,16 +296,17 @@
 // ═══════════════════════════════════════════════════
 //  SCENE BOOTSTRAP
 // ═══════════════════════════════════════════════════
-const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x04060f);
-scene.fog = new THREE.FogExp2(0x04060f, 0.018);
+scene.background = new THREE.Color(0x000408);
+scene.fog = new THREE.FogExp2(0x000408, 0.018);
 
 // Camera spherical state
 let camState = { theta: Math.PI * 0.42, phi: Math.PI * 0.32, r: 26 };
@@ -332,6 +328,15 @@ function updateCamera() {
   );
   camera.lookAt(0, 0, 0);
 }
+
+// Speed multiplier
+let speedMul = 1.0;
+const speedInput = document.getElementById('speed-input');
+const speedVal = document.getElementById('speed-val');
+speedInput.addEventListener('input', () => {
+  speedMul = parseFloat(speedInput.value);
+  speedVal.textContent = speedMul.toFixed(1) + '×';
+});
 
 // ═══════════════════════════════════════════════════
 //  LIGHTING
@@ -526,25 +531,18 @@ function buildDrone(cfg) {
     const dir = new THREE.Vector3(dx, 0, dz).normalize();
 
     const armCyl = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.022, 0.022, ARM_LEN * 1.95, 6),
-      armMat
+      new THREE.CylinderGeometry(0.022, 0.022, ARM_LEN * 1.95, 6), armMat
     );
     const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
     armCyl.quaternion.copy(quat);
     armCyl.position.set(dx * 0.5, 0, dz * 0.5);
     group.add(armCyl);
 
-    const hub = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.055, 0.07, 8),
-      hubMat
-    );
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.07, 8), hubMat);
     hub.position.set(dx, 0.06, dz);
     group.add(hub);
 
-    const disk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.24, 0.24, 0.012, 16),
-      diskMat
-    );
+    const disk = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.012, 16), diskMat);
     disk.position.set(dx, 0.09, dz);
     group.add(disk);
     rotors.push({ mesh: disk, dir: i % 2 === 0 ? 1 : -1 });
@@ -572,43 +570,18 @@ function buildDrone(cfg) {
 const NUM_OBS = 15;
 const obstacles = [];
 
-const OBS_PALETTE = [
-  { col: 0xff8833, em: 0x6a2800 },
-  { col: 0xff3388, em: 0x6a0028 },
-  { col: 0xffcc33, em: 0x6a4a00 },
-  { col: 0xcc44ff, em: 0x440066 },
-  { col: 0xff5555, em: 0x660010 },
-  { col: 0x44ffcc, em: 0x006644 },
-  { col: 0xff88cc, em: 0x660044 },
-  { col: 0xaaff44, em: 0x3a6000 },
-  { col: 0x55aaff, em: 0x003366 },
-  { col: 0xff4400, em: 0x7a1500 },
-  { col: 0x00ffaa, em: 0x006640 },
-  { col: 0xff00ff, em: 0x660066 },
-  { col: 0x00ccff, em: 0x005566 },
-  { col: 0xffee00, em: 0x665500 },
-  { col: 0x88ff00, em: 0x336600 },
-];
-
 for (let i = 0; i < NUM_OBS; i++) {
   const rad = 0.35 + Math.random() * 0.32;
-  const { col, em } = OBS_PALETTE[i % OBS_PALETTE.length];
-  const geo = new THREE.SphereGeometry(rad, 18, 14);
+  const geo = new THREE.SphereGeometry(rad, 20, 20);
   const mat = new THREE.MeshPhongMaterial({
-    color: col, emissive: em,
-    shininess: 60, transparent: true, opacity: 0.88
+    color: 0xff3333, emissive: 0x330000, shininess: 80, transparent: true, opacity: 0.85
   });
   const mesh = new THREE.Mesh(geo, mat);
 
-  const wf = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-    color: 0xffffff, wireframe: true, transparent: true, opacity: 0.08
-  }));
-  mesh.add(wf);
+  const wireGeo = new THREE.SphereGeometry(rad * 1.02, 10, 10);
+  const wireMat = new THREE.MeshBasicMaterial({ color: 0xff6666, wireframe: true, transparent: true, opacity: 0.3 });
+  mesh.add(new THREE.Mesh(wireGeo, wireMat));
 
-  const pl = new THREE.PointLight(col, 0.6, 2.5);
-  mesh.add(pl);
-
-  // Place away from all starts and goal
   let pos;
   let tries = 0;
   do {
@@ -628,9 +601,7 @@ for (let i = 0; i < NUM_OBS; i++) {
 
   const speed = 0.012 + Math.random() * 0.02;
   const vel = new THREE.Vector3(
-    Math.random() - 0.5,
-    Math.random() - 0.5,
-    Math.random() - 0.5
+    Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
   ).normalize().multiplyScalar(speed);
 
   obstacles.push({ mesh, vel, radius: rad });
@@ -640,16 +611,16 @@ for (let i = 0; i < NUM_OBS; i++) {
 //  APF PARAMETERS
 // ═══════════════════════════════════════════════════
 const APF = {
-  D_STAR:      2.8,   // attractive saturation radius
-  K_REP:       40.0,  // obstacle repulsive gain
-  D0:          3.8,   // obstacle influence radius
-  K_WALL:      14.0,  // wall repulsion gain
-  D_WALL:      2.2,   // wall influence radius
-  K_DRONE_REP: 28.0,  // drone-drone repulsion gain
-  D_DRONE:     2.2,   // drone-drone influence radius
-  DRONE_R:     0.32,  // effective drone body radius
-  DT:          0.012, // timestep
-  DAMP:        0.75,  // velocity damping
+  D_STAR:      2.8,
+  K_REP:       40.0,
+  D0:          3.8,
+  K_WALL:      14.0,
+  D_WALL:      2.2,
+  K_DRONE_REP: 28.0,
+  D_DRONE:     2.2,
+  DRONE_R:     0.32,
+  DT:          0.012,
+  DAMP:        0.75,
 };
 
 // ═══════════════════════════════════════════════════
@@ -697,7 +668,6 @@ function computeAPF(idx) {
   const pos   = drone.group.position;
   const F     = new THREE.Vector3();
 
-  // — Attractive —
   const toGoal = GOAL.clone().sub(pos);
   const dGoal  = toGoal.length();
   const Fatt   = dGoal < APF.D_STAR
@@ -706,15 +676,13 @@ function computeAPF(idx) {
   drone.lastFatt = Fatt.length();
   F.add(Fatt);
 
-  // Within the goal capture zone, skip all repulsions so wall/drone forces
-  // cannot create a local minimum that prevents arrival.
+  // Goal capture zone
   if (dGoal < 1.5) {
     drone.lastFrep = 0;
     drone.lastFnet = F.length();
     return F;
   }
 
-  // — Repulsive: obstacles —
   const Frep = new THREE.Vector3();
   for (const obs of obstacles) {
     const toObs = pos.clone().sub(obs.mesh.position);
@@ -726,7 +694,6 @@ function computeAPF(idx) {
     }
   }
 
-  // — Repulsive: other drones —
   for (let j = 0; j < drones.length; j++) {
     if (j === idx || drones[j].reached) continue;
     const toDrone = pos.clone().sub(drones[j].group.position);
@@ -741,7 +708,6 @@ function computeAPF(idx) {
   drone.lastFrep = Frep.length();
   F.add(Frep);
 
-  // — Wall repulsion —
   const bound = HALF - 0.25;
   for (const ax of ['x','y','z']) {
     const p    = pos[ax];
@@ -764,7 +730,6 @@ function animate() {
   requestAnimationFrame(animate);
   frame++;
 
-  // — Spin goal rings —
   ringGeos.forEach((r, i) => {
     const t = frame * 0.012 + i * Math.PI * 0.6;
     r.scale.setScalar(1 + Math.sin(t) * 0.12);
@@ -773,7 +738,6 @@ function animate() {
     r.rotation.y += 0.008 * (i + 1);
   });
 
-  // — Move obstacles —
   for (const obs of obstacles) {
     obs.mesh.position.add(obs.vel);
     obs.mesh.rotation.x += 0.008;
@@ -785,8 +749,9 @@ function animate() {
     }
   }
 
-  // — Drone simulation —
   if (running && !allReached) {
+    const dt = APF.DT * speedMul;
+
     for (let idx = 0; idx < drones.length; idx++) {
       const drone = drones[idx];
       if (drone.reached) continue;
@@ -794,14 +759,11 @@ function animate() {
       const pos   = drone.group.position;
       const force = computeAPF(idx);
 
-      // Anti-stuck jitter
       if (drone.vel.length() < 0.004) {
         drone.stuckCtr++;
         if (drone.stuckCtr > 40) {
           force.add(new THREE.Vector3(
-            (Math.random() - 0.5) * 0.9,
-            (Math.random() - 0.5) * 0.9,
-            (Math.random() - 0.5) * 0.9
+            (Math.random()-0.5)*0.9, (Math.random()-0.5)*0.9, (Math.random()-0.5)*0.9
           ));
           drone.stuckCtr = 0;
         }
@@ -809,15 +771,13 @@ function animate() {
         drone.stuckCtr = 0;
       }
 
-      // Integrate
-      drone.vel.addScaledVector(force, APF.DT);
+      drone.vel.addScaledVector(force, dt);
       drone.vel.multiplyScalar(APF.DAMP);
-      drone.vel.clampLength(0, drone.cfg.vmax);
+      drone.vel.clampLength(0, drone.cfg.vmax * speedMul);
 
       pos.add(drone.vel);
       pos.clampScalar(-HALF + 0.18, HALF - 0.18);
 
-      // Obstacle push-out
       for (const obs of obstacles) {
         const diff    = pos.clone().sub(obs.mesh.position);
         const minDist = obs.radius + 0.28;
@@ -827,7 +787,6 @@ function animate() {
         }
       }
 
-      // Drone-drone push-out
       for (let j = 0; j < drones.length; j++) {
         if (j === idx) continue;
         const diff    = pos.clone().sub(drones[j].group.position);
@@ -838,14 +797,12 @@ function animate() {
         }
       }
 
-      // Trail
       drone.pathLen += pos.distanceTo(drone.prevPos);
       drone.prevPos.copy(pos.clone());
       drone.trail.points.push(pos.clone());
       if (drone.trail.points.length > MAX_TRAIL) drone.trail.points.shift();
       if (drone.trail.points.length >= 2) drone.trail.geo.setFromPoints(drone.trail.points);
 
-      // Banking tilt
       const tX = -drone.vel.z * 4.5;
       const tZ =  drone.vel.x * 4.5;
       drone.group.rotation.x += (tX - drone.group.rotation.x) * 0.12;
@@ -855,7 +812,6 @@ function animate() {
         drone.group.rotation.y += (yaw - drone.group.rotation.y) * 0.08;
       }
 
-      // Check goal
       if (pos.distanceTo(GOAL) < 0.8) {
         drone.reached     = true;
         drone.vel.set(0, 0, 0);
@@ -873,7 +829,7 @@ function animate() {
     }
 
     // HUD update (ALPHA drone forces)
-    const a   = drones[0];
+    const a    = drones[0];
     const maxF = 10;
     document.getElementById('fAtt').textContent = a.lastFatt.toFixed(2);
     document.getElementById('bAtt').style.width = Math.min(a.lastFatt / maxF * 100, 100) + '%';
@@ -883,13 +839,11 @@ function animate() {
     document.getElementById('bNet').style.width = Math.min(a.lastFnet / maxF * 100, 100) + '%';
   }
 
-  // Spin rotors
   const spinSpeed = running ? 0.28 : 0.06;
   for (const drone of drones) {
     for (const r of drone.rotors) r.mesh.rotation.y += spinSpeed * r.dir;
   }
 
-  // Pulse start markers
   const sp = 1 + Math.sin(frame * 0.06) * 0.08;
   startMarkers.forEach(m => m.scale.setScalar(sp));
 
@@ -906,16 +860,18 @@ function onDroneArrived(idx) {
   const drone = drones[idx];
   const rank  = drone.arrivalRank - 1;
   const el    = document.getElementById('sDrone' + idx);
-  el.textContent  = RANK_LABELS[rank];
-  el.style.color  = RANK_COLORS[rank];
+  el.textContent = RANK_LABELS[rank];
+  el.style.color = RANK_COLORS[rank];
   document.getElementById('sArrived').textContent = arrivalCounter + ' / 4';
 }
 
 function onAllReached() {
-  document.getElementById('sStatus').textContent = 'MISSION COMPLETE';
-  document.getElementById('sStatus').style.color = '#4f8';
-  document.getElementById('btnStart').textContent = '✓ Done';
-  document.getElementById('btnStart').disabled    = true;
+  document.getElementById('sStatus').textContent = 'ARRIVED';
+  document.getElementById('sStatus').style.color = '#00ff88';
+  document.getElementById('status-text').textContent = '⬡ MISSION COMPLETE';
+  document.getElementById('status-text').className = 'arrived';
+  document.getElementById('btnStart').textContent = '✓ DONE';
+  document.getElementById('btnStart').disabled = true;
   document.getElementById('goal-overlay').classList.add('visible');
   setTimeout(() => {
     document.getElementById('goal-overlay').classList.remove('visible');
@@ -927,8 +883,9 @@ function onAllReached() {
 // ═══════════════════════════════════════════════════
 let dragging = false, lastM = {x:0, y:0};
 
-canvas.addEventListener('mousedown', e => { dragging = true; lastM = {x:e.clientX, y:e.clientY}; });
+renderer.domElement.addEventListener('mousedown', e => { dragging = true; lastM = {x:e.clientX, y:e.clientY}; });
 window.addEventListener('mouseup', () => dragging = false);
+renderer.domElement.addEventListener('mouseleave', () => dragging = false);
 window.addEventListener('mousemove', e => {
   if (!dragging) return;
   camState.theta -= (e.clientX - lastM.x) * 0.007;
@@ -936,15 +893,15 @@ window.addEventListener('mousemove', e => {
   lastM = {x: e.clientX, y: e.clientY};
   updateCamera();
 });
-canvas.addEventListener('wheel', e => {
+renderer.domElement.addEventListener('wheel', e => {
   camState.r = Math.max(7, Math.min(55, camState.r + e.deltaY * 0.025));
   updateCamera();
   e.preventDefault();
 }, { passive: false });
 
 let lastTouch = null;
-canvas.addEventListener('touchstart', e => { lastTouch = e.touches[0]; });
-canvas.addEventListener('touchmove', e => {
+renderer.domElement.addEventListener('touchstart', e => { lastTouch = e.touches[0]; });
+renderer.domElement.addEventListener('touchmove', e => {
   if (!lastTouch) return;
   const t = e.touches[0];
   camState.theta -= (t.clientX - lastTouch.clientX) * 0.007;
@@ -953,7 +910,7 @@ canvas.addEventListener('touchmove', e => {
   updateCamera();
   e.preventDefault();
 }, { passive: false });
-canvas.addEventListener('touchend', () => lastTouch = null);
+renderer.domElement.addEventListener('touchend', () => lastTouch = null);
 
 // ═══════════════════════════════════════════════════
 //  BUTTONS
@@ -965,22 +922,26 @@ btnStart.addEventListener('click', () => {
   if (allReached) return;
   running = !running;
   if (running) {
-    btnStart.textContent = '⏸ Pause';
+    btnStart.textContent = '⏸ PAUSE';
     btnStart.classList.add('active');
     document.getElementById('sStatus').textContent = 'NAVIGATING';
-    document.getElementById('sStatus').style.color = '#fa4';
+    document.getElementById('sStatus').style.color = '#ffcc00';
+    document.getElementById('status-text').textContent = '⬡ NAVIGATING...';
+    document.getElementById('status-text').className = 'navigating';
     drones.forEach((d, i) => {
       if (!d.reached) {
         const el = document.getElementById('sDrone' + i);
         el.textContent = 'FLYING';
-        el.style.color = '#fa4';
+        el.style.color = '#ffcc00';
       }
     });
   } else {
-    btnStart.textContent = '▶ Resume';
+    btnStart.textContent = '▶ RESUME';
     btnStart.classList.remove('active');
     document.getElementById('sStatus').textContent = 'PAUSED';
     document.getElementById('sStatus').style.color = '#88a';
+    document.getElementById('status-text').textContent = '⬡ PAUSED';
+    document.getElementById('status-text').className = '';
     drones.forEach((d, i) => {
       if (!d.reached) {
         const el = document.getElementById('sDrone' + i);
@@ -1014,14 +975,16 @@ btnReset.addEventListener('click', () => {
 
     const el = document.getElementById('sDrone' + i);
     el.textContent = 'STANDBY';
-    el.style.color = '#3af';
+    el.style.color = '#00ffe7';
   });
 
-  btnStart.textContent = '▶ Launch';
+  btnStart.textContent = '▶ LAUNCH';
   btnStart.classList.remove('active');
   btnStart.disabled = false;
   document.getElementById('sStatus').textContent = 'STANDBY';
-  document.getElementById('sStatus').style.color = '#3af';
+  document.getElementById('sStatus').style.color = '#00ffe7';
+  document.getElementById('status-text').textContent = '⬡ AWAITING LAUNCH';
+  document.getElementById('status-text').className = '';
   document.getElementById('sArrived').textContent = '0 / 4';
   document.getElementById('bAtt').style.width = '0%';
   document.getElementById('bRep').style.width = '0%';

@@ -6,6 +6,12 @@ A real-time, interactive **3D simulation** of a drone navigating through obstacl
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) ![Tech](https://img.shields.io/badge/built%20with-Three.js-black)
 
+<p align="center">
+  <img src="screenshot.png" alt="APF Drone Simulation Screenshot" width="800"/>
+  <br/>
+  <em>The drone navigating through obstacles toward the goal — cyberpunk HUD with real-time telemetry, force vectors, and APF trail.</em>
+</p>
+
 ---
 
 ## 📖 Table of Contents

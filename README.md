@@ -233,7 +233,9 @@ apf_drone_simulation/
 
 ## Acknowledgements
 
-This project was created with the help of **[Claude](https://claude.ai)** by Anthropic — an AI assistant that helped design, develop, and document this simulation.
+The idea for this project originated from a conversation with **[Google Gemini](https://gemini.google.com)**, where I asked *"What kind of algorithms are used in drone swarm movement and actions they perform?"* — the discussion introduced me to Artificial Potential Fields among other fascinating algorithms. You can read the [original conversation here](https://gemini.google.com/share/33bc55619bca).
+
+The simulation itself was then built with the help of **[Claude](https://claude.ai)**.
 
 ---
 

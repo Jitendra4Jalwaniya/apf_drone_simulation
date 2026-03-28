@@ -105,6 +105,12 @@ open apf_drone_swarm.html   # or any of the other HTML files
 
 ---
 
+## TODO
+
+- [ ] Introduce a new version containing **harmonic potential fields** for smoother, curl-free navigation without local minima.
+
+---
+
 ## Acknowledgements
 
 The idea originated from a conversation with **[Google Gemini](https://gemini.google.com)**, where the discussion on drone swarm algorithms introduced me to Artificial Potential Fields. You can read the [original conversation here](https://gemini.google.com/share/33bc55619bca).

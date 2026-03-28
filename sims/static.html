@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APF Drone Simulation</title>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="hud">
+    <h1>&#9672; APF Drone Nav</h1>
+    <div class="hud-row"><span class="hud-label">POS X</span><span class="hud-val" id="val-x">-4.50</span></div>
+    <div class="hud-row"><span class="hud-label">POS Y</span><span class="hud-val" id="val-y">-4.50</span></div>
+    <div class="hud-row"><span class="hud-label">POS Z</span><span class="hud-val" id="val-z">-4.50</span></div>
+    <hr class="hud-divider">
+    <div class="hud-row"><span class="hud-label">DIST TO GOAL</span><span class="hud-val" id="val-dist">15.59</span></div>
+    <div class="hud-row"><span class="hud-label">FORCE MAG</span><span class="hud-val" id="val-force">0.00</span></div>
+    <div class="hud-row"><span class="hud-label">OBSTACLES</span><span class="hud-val" id="val-obs">10</span></div>
+    <div class="progress-bar-bg"><div id="progress-bar"></div></div>
+    <div id="status-text" class="planning">&#11041; COMPUTING PATH...</div>
+</div>
+
+<div id="legend">
+    <h2>LEGEND</h2>
+    <div class="legend-row"><div class="dot" style="background:#4488ff;box-shadow:0 0 6px #4488ff"></div> Drone</div>
+    <div class="legend-row"><div class="dot" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></div> Goal</div>
+    <div class="legend-row"><div class="dot" style="background:#ff4444;box-shadow:0 0 6px #ff4444"></div> Obstacle</div>
+    <div class="legend-row"><div class="dot" style="background:rgba(0,200,255,0.5)"></div> APF Trail</div>
+</div>
+
+<div id="controls">
+    <button class="btn active" id="btn-play" onclick="togglePlay()">&#9208; PAUSE</button>
+    <button class="btn btn-reset" onclick="resetSim()">&#8634; RESET</button>
+    <span class="speed-label">SPEED</span>
+    <input type="range" id="speed-input" min="0.5" max="5" step="0.1" value="1.5">
+    <span class="speed-label" id="speed-val">1.5&times;</span>
+</div>
+
+<div class="hint">&#128433; DRAG TO ORBIT &middot; SCROLL TO ZOOM</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../js/shared/engine.js"></script>
+<script src="../js/sim-static.js"></script>
+</body>
+</html>

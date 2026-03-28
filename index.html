@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APF Drone Simulations</title>
+<link rel="stylesheet" href="css/common.css">
+<style>
+    body { overflow: auto; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .landing {
+        text-align: center;
+        padding: 40px 20px;
+        max-width: 600px;
+    }
+    .landing h1 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 18px; font-weight: 900;
+        letter-spacing: 0.3em;
+        color: #00ffe7;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+    .landing p {
+        font-size: 11px;
+        color: rgba(0, 255, 231, 0.45);
+        letter-spacing: 0.1em;
+        margin-bottom: 40px;
+    }
+    .sim-cards { display: flex; flex-direction: column; gap: 16px; }
+    .sim-card {
+        display: block;
+        text-decoration: none;
+        background: rgba(0, 8, 20, 0.85);
+        border: 1px solid rgba(0, 255, 231, 0.25);
+        border-left: 3px solid #00ffe7;
+        padding: 20px 24px;
+        text-align: left;
+        backdrop-filter: blur(8px);
+        transition: all 0.2s;
+    }
+    .sim-card:hover {
+        background: rgba(0, 255, 231, 0.06);
+        border-color: #00ffe7;
+        box-shadow: 0 0 20px rgba(0, 255, 231, 0.15);
+    }
+    .sim-card h2 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 11px; font-weight: 700;
+        letter-spacing: 0.2em;
+        color: #00ffe7;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+    }
+    .sim-card p {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.55);
+        letter-spacing: 0.04em;
+        margin: 0;
+    }
+</style>
+</head>
+<body>
+<div class="landing">
+    <h1>APF Drone Simulations</h1>
+    <p>Artificial Potential Field Path Planning in 3D</p>
+    <div class="sim-cards">
+        <a class="sim-card" href="sims/static.html">
+            <h2>01 &mdash; Static Obstacles</h2>
+            <p>Single drone navigating through 10 fixed obstacles using APF forces.</p>
+        </a>
+        <a class="sim-card" href="sims/moving-obstacles.html">
+            <h2>02 &mdash; Moving Obstacles</h2>
+            <p>Single drone avoiding 15 moving obstacles with stronger repulsive forces.</p>
+        </a>
+        <a class="sim-card" href="sims/swarm.html">
+            <h2>03 &mdash; Drone Swarm</h2>
+            <p>4 drones with fixed arrival order, drone-drone collision avoidance, and moving obstacles.</p>
+        </a>
+    </div>
+</div>
+</body>
+</html>

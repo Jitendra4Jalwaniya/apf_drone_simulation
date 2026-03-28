@@ -1,0 +1,228 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #000;
+    overflow: hidden;
+    font-family: 'Share Tech Mono', monospace;
+    color: #00ffe7;
+    user-select: none;
+}
+
+#canvas-container {
+    width: 100vw; height: 100vh;
+    cursor: grab;
+}
+#canvas-container:active { cursor: grabbing; }
+
+#canvas-container::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(to bottom,
+        transparent 0px, transparent 3px,
+        rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* ---- HUD Panel (top-left) ---- */
+#hud {
+    position: fixed; top: 24px; left: 24px; z-index: 20;
+    background: rgba(0, 8, 20, 0.85);
+    border: 1px solid rgba(0, 255, 231, 0.3);
+    border-left: 3px solid #00ffe7;
+    padding: 16px 20px;
+    min-width: 240px;
+    backdrop-filter: blur(8px);
+}
+#hud h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px; font-weight: 900;
+    letter-spacing: 0.25em;
+    color: #00ffe7;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+}
+.hud-row {
+    display: flex; justify-content: space-between; gap: 20px;
+    font-size: 11px; margin-bottom: 6px; letter-spacing: 0.05em;
+}
+.hud-label { color: rgba(0, 255, 231, 0.5); display: flex; align-items: center; gap: 6px; }
+.hud-val { color: #fff; font-weight: bold; }
+.hud-divider {
+    border: none;
+    border-top: 1px solid rgba(0, 255, 231, 0.15);
+    margin: 10px 0;
+}
+
+/* ---- Progress Bar ---- */
+.progress-bar-bg {
+    width: 100%; height: 4px;
+    background: rgba(0, 255, 231, 0.1);
+    border-radius: 2px;
+    margin-top: 8px; overflow: hidden;
+}
+#progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #00ffe7, #00ff88);
+    transition: width 0.1s;
+    border-radius: 2px;
+    box-shadow: 0 0 8px #00ffe7;
+}
+
+/* ---- Status Text ---- */
+#status-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px; letter-spacing: 0.15em;
+    margin-top: 10px; color: #00ffe7;
+}
+#status-text.arrived { color: #00ff88; }
+#status-text.navigating { color: #ffcc00; }
+#status-text.planning { color: #ffcc00; }
+
+/* ---- APF Forces Panel (bottom-left) ---- */
+#apf-panel {
+    position: fixed; bottom: 80px; left: 24px; z-index: 20;
+    background: rgba(0, 8, 20, 0.85);
+    border: 1px solid rgba(0, 255, 231, 0.3);
+    border-left: 3px solid rgba(0, 255, 231, 0.4);
+    padding: 14px 18px;
+    min-width: 200px;
+    backdrop-filter: blur(8px);
+}
+#apf-panel h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px; letter-spacing: 0.2em;
+    color: rgba(0, 255, 231, 0.6);
+    margin-bottom: 10px;
+}
+.bar-row { margin: 6px 0; }
+.bar-label {
+    font-size: 10px; color: rgba(0, 255, 231, 0.5);
+    display: flex; justify-content: space-between;
+    margin-bottom: 3px;
+}
+.bar-label span:last-child { color: #fff; }
+.bar-bg { height: 4px; background: rgba(0, 255, 231, 0.08); border-radius: 2px; }
+.bar-fill { height: 100%; border-radius: 2px; transition: width 0.1s; }
+
+/* ---- Controls Bar (bottom center) ---- */
+#controls {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 20; display: flex; gap: 10px; align-items: center;
+    background: rgba(0, 8, 20, 0.85);
+    border: 1px solid rgba(0, 255, 231, 0.25);
+    padding: 12px 20px;
+    backdrop-filter: blur(8px);
+}
+.btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.2em; padding: 8px 18px;
+    border: 1px solid rgba(0, 255, 231, 0.4);
+    background: transparent; color: #00ffe7;
+    cursor: pointer; text-transform: uppercase;
+    transition: all 0.15s;
+}
+.btn:hover {
+    background: rgba(0, 255, 231, 0.1);
+    border-color: #00ffe7;
+    box-shadow: 0 0 12px rgba(0, 255, 231, 0.3);
+}
+.btn.active {
+    background: rgba(0, 255, 231, 0.15);
+    border-color: #00ffe7;
+    box-shadow: 0 0 16px rgba(0, 255, 231, 0.4);
+}
+.btn-reset { border-color: rgba(255, 80, 80, 0.4); color: #ff5555; }
+.btn-reset:hover {
+    background: rgba(255, 80, 80, 0.1);
+    border-color: #ff5555;
+    box-shadow: 0 0 12px rgba(255, 80, 80, 0.3);
+}
+
+/* ---- Speed Slider ---- */
+.speed-label {
+    font-size: 10px; letter-spacing: 0.1em;
+    color: rgba(0, 255, 231, 0.5); margin-left: 8px;
+}
+#speed-input {
+    width: 80px; -webkit-appearance: none;
+    height: 3px; background: rgba(0, 255, 231, 0.2);
+    outline: none; cursor: pointer; border-radius: 2px;
+}
+#speed-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    background: #00ffe7; border-radius: 50%;
+    box-shadow: 0 0 8px #00ffe7;
+}
+
+/* ---- Legend (top-right) ---- */
+#legend {
+    position: fixed; top: 24px; right: 24px; z-index: 20;
+    background: rgba(0, 8, 20, 0.85);
+    border: 1px solid rgba(0, 255, 231, 0.2);
+    border-right: 3px solid rgba(0, 255, 231, 0.4);
+    padding: 14px 18px;
+    backdrop-filter: blur(8px);
+    font-size: 10px; letter-spacing: 0.08em;
+}
+#legend h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px; letter-spacing: 0.2em;
+    color: rgba(0, 255, 231, 0.6);
+    margin-bottom: 10px;
+}
+.legend-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px; color: rgba(255, 255, 255, 0.7);
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ---- Hint ---- */
+.hint {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    z-index: 20; font-size: 9px; letter-spacing: 0.12em;
+    color: rgba(0, 255, 231, 0.35);
+}
+
+/* ---- Goal Overlay ---- */
+#goal-overlay {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0;
+    transition: opacity 1.2s ease; z-index: 30;
+}
+#goal-overlay.visible { opacity: 1; }
+.goal-box { text-align: center; animation: goalPulse 2s ease-in-out infinite; }
+.goal-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 42px; font-weight: 900;
+    letter-spacing: 8px; color: #00ff88;
+    text-shadow: 0 0 40px #00ff88, 0 0 80px rgba(0,255,136,0.3);
+    text-transform: uppercase;
+}
+.goal-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; color: rgba(0, 255, 136, 0.6);
+    letter-spacing: 4px; margin-top: 8px;
+}
+@keyframes goalPulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+}
+
+/* ---- Swarm-specific ---- */
+.drone-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; flex-shrink: 0;
+}
+.section-head {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px; letter-spacing: 0.2em;
+    color: rgba(0, 255, 231, 0.35);
+    margin: 8px 0 4px;
+    text-transform: uppercase;
+}

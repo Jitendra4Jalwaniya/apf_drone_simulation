@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APF Drone &middot; Moving Obstacles</title>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="hud">
+    <h1>&#9672; APF Moving Obstacles</h1>
+    <div class="hud-row"><span class="hud-label">STATUS</span><span class="hud-val" id="sStatus">STANDBY</span></div>
+    <div class="hud-row"><span class="hud-label">POSITION</span><span class="hud-val" id="sPos">&mdash;</span></div>
+    <div class="hud-row"><span class="hud-label">VELOCITY</span><span class="hud-val" id="sVel">&mdash;</span></div>
+    <hr class="hud-divider">
+    <div class="hud-row"><span class="hud-label">PATH LEN</span><span class="hud-val" id="sPath">0.00</span></div>
+    <div class="hud-row"><span class="hud-label">NEAREST OBS</span><span class="hud-val" id="sObs">&mdash;</span></div>
+    <div class="hud-row"><span class="hud-label">DIST TO GOAL</span><span class="hud-val" id="sDist">&mdash;</span></div>
+    <div class="progress-bar-bg"><div id="progress-bar"></div></div>
+    <div id="status-text">&#11041; AWAITING LAUNCH</div>
+</div>
+
+<div id="apf-panel">
+    <h2>APF FORCES</h2>
+    <div class="bar-row">
+        <div class="bar-label"><span>Attractive</span><span id="fAtt">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bAtt" style="width:0%;background:#00ffe7"></div></div>
+    </div>
+    <div class="bar-row">
+        <div class="bar-label"><span>Repulsive</span><span id="fRep">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bRep" style="width:0%;background:#ff5555"></div></div>
+    </div>
+    <div class="bar-row">
+        <div class="bar-label"><span>Net Force</span><span id="fNet">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bNet" style="width:0%;background:#ffcc00"></div></div>
+    </div>
+</div>
+
+<div id="legend">
+    <h2>LEGEND</h2>
+    <div class="legend-row"><div class="dot" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></div> Start</div>
+    <div class="legend-row"><div class="dot" style="background:#ff4444;box-shadow:0 0 6px #ff4444"></div> Goal</div>
+    <div class="legend-row"><div class="dot" style="background:#ff3333;box-shadow:0 0 6px #ff3333"></div> Obstacles</div>
+    <div class="legend-row"><div class="dot" style="background:rgba(0,200,255,0.5)"></div> APF Trail</div>
+    <div class="legend-row"><div class="dot" style="background:#4488ff;box-shadow:0 0 6px #4488ff"></div> Drone</div>
+</div>
+
+<div id="controls">
+    <button class="btn" id="btnStart">&#9654; LAUNCH</button>
+    <button class="btn btn-reset" id="btnReset">&#8634; RESET</button>
+    <span class="speed-label">SPEED</span>
+    <input type="range" id="speed-input" min="0.5" max="5" step="0.1" value="1.0">
+    <span class="speed-label" id="speed-val">1.0&times;</span>
+</div>
+
+<div class="hint">DRAG TO ORBIT &middot; SCROLL TO ZOOM</div>
+
+<div id="goal-overlay">
+    <div class="goal-box">
+        <div class="goal-title">GOAL REACHED</div>
+        <div class="goal-sub">MISSION COMPLETE</div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../js/shared/engine.js"></script>
+<script src="../js/shared/environment.js"></script>
+<script src="../js/shared/drone.js"></script>
+<script src="../js/shared/obstacles.js"></script>
+<script src="../js/shared/markers.js"></script>
+<script src="../js/sim-moving.js"></script>
+</body>
+</html>

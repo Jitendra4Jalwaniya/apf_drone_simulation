@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APF Drone Swarm</title>
+<link rel="stylesheet" href="../css/common.css">
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="hud">
+    <h1>&#9672; APF Drone Swarm</h1>
+    <div class="hud-row"><span class="hud-label">STATUS</span><span class="hud-val" id="sStatus">STANDBY</span></div>
+    <div class="hud-row"><span class="hud-label">ARRIVED</span><span class="hud-val" id="sArrived">0 / 4</span></div>
+    <hr class="hud-divider">
+    <div class="section-head">Swarm Units</div>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#44ddff;box-shadow:0 0 5px #44ddff"></span> ALPHA</span>
+        <span class="hud-val" id="sDrone0">STANDBY</span>
+    </div>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#ff8844;box-shadow:0 0 5px #ff8844"></span> BETA</span>
+        <span class="hud-val" id="sDrone1">STANDBY</span>
+    </div>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#66ff66;box-shadow:0 0 5px #66ff66"></span> GAMMA</span>
+        <span class="hud-val" id="sDrone2">STANDBY</span>
+    </div>
+    <div class="hud-row">
+        <span class="hud-label"><span class="drone-dot" style="background:#cc66ff;box-shadow:0 0 5px #cc66ff"></span> DELTA</span>
+        <span class="hud-val" id="sDrone3">STANDBY</span>
+    </div>
+    <div id="status-text">&#11041; AWAITING LAUNCH</div>
+</div>
+
+<div id="apf-panel">
+    <h2>APF FORCES &middot; ALPHA</h2>
+    <div class="bar-row">
+        <div class="bar-label"><span>Attractive</span><span id="fAtt">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bAtt" style="width:0%;background:#00ffe7"></div></div>
+    </div>
+    <div class="bar-row">
+        <div class="bar-label"><span>Repulsive</span><span id="fRep">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bRep" style="width:0%;background:#ff5555"></div></div>
+    </div>
+    <div class="bar-row">
+        <div class="bar-label"><span>Net Force</span><span id="fNet">0.00</span></div>
+        <div class="bar-bg"><div class="bar-fill" id="bNet" style="width:0%;background:#ffcc00"></div></div>
+    </div>
+</div>
+
+<div id="legend">
+    <h2>LEGEND</h2>
+    <div class="legend-row"><div class="dot" style="background:#44ddff;box-shadow:0 0 6px #44ddff"></div> Alpha</div>
+    <div class="legend-row"><div class="dot" style="background:#ff8844;box-shadow:0 0 6px #ff8844"></div> Beta</div>
+    <div class="legend-row"><div class="dot" style="background:#66ff66;box-shadow:0 0 6px #66ff66"></div> Gamma</div>
+    <div class="legend-row"><div class="dot" style="background:#cc66ff;box-shadow:0 0 6px #cc66ff"></div> Delta</div>
+    <div class="legend-row"><div class="dot" style="background:#ff4444;box-shadow:0 0 6px #ff4444"></div> Goal</div>
+    <div class="legend-row"><div class="dot" style="background:#ff3333;box-shadow:0 0 6px #ff3333"></div> Obstacles</div>
+</div>
+
+<div id="controls">
+    <button class="btn" id="btnStart">&#9654; LAUNCH</button>
+    <button class="btn btn-reset" id="btnReset">&#8634; RESET</button>
+    <span class="speed-label">SPEED</span>
+    <input type="range" id="speed-input" min="0.5" max="5" step="0.1" value="1.0">
+    <span class="speed-label" id="speed-val">1.0&times;</span>
+</div>
+
+<div class="hint">DRAG TO ORBIT &middot; SCROLL TO ZOOM</div>
+
+<div id="goal-overlay">
+    <div class="goal-box">
+        <div class="goal-title">SWARM ARRIVED</div>
+        <div class="goal-sub">MISSION COMPLETE</div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../js/shared/engine.js"></script>
+<script src="../js/shared/environment.js"></script>
+<script src="../js/shared/drone.js"></script>
+<script src="../js/shared/obstacles.js"></script>
+<script src="../js/shared/markers.js"></script>
+<script src="../js/sim-swarm.js"></script>
+</body>
+</html>

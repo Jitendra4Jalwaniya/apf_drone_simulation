@@ -108,6 +108,8 @@ open apf_drone_swarm.html   # or any of the other HTML files
 ## TODO
 
 - [ ] Introduce a new version containing **harmonic potential fields** for smoother, curl-free navigation without local minima.
+- [ ] Create bigger drone swarm (16-50-100 drones) with single target, all hitting it in random order.
+- [ ] Turn the obstacles in interceptors.
 
 ---
 

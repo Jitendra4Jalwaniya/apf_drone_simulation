@@ -706,6 +706,14 @@ function computeAPF(idx) {
   drone.lastFatt = Fatt.length();
   F.add(Fatt);
 
+  // Within the goal capture zone, skip all repulsions so wall/drone forces
+  // cannot create a local minimum that prevents arrival.
+  if (dGoal < 1.5) {
+    drone.lastFrep = 0;
+    drone.lastFnet = F.length();
+    return F;
+  }
+
   // — Repulsive: obstacles —
   const Frep = new THREE.Vector3();
   for (const obs of obstacles) {
@@ -848,10 +856,11 @@ function animate() {
       }
 
       // Check goal
-      if (pos.distanceTo(GOAL) < 0.6) {
+      if (pos.distanceTo(GOAL) < 0.8) {
         drone.reached     = true;
         drone.vel.set(0, 0, 0);
-        pos.copy(GOAL);
+        scene.remove(drone.group);
+        scene.remove(drone.trail.line);
         arrivalCounter++;
         drone.arrivalRank = arrivalCounter;
         onDroneArrived(idx);
@@ -993,6 +1002,8 @@ btnReset.addEventListener('click', () => {
     drone.vel.set(0, 0, 0);
     drone.group.position.copy(drone.cfg.start);
     drone.group.rotation.set(0, 0, 0);
+    scene.add(drone.group);
+    scene.add(drone.trail.line);
     drone.pathLen   = 0;
     drone.stuckCtr  = 0;
     drone.prevPos.copy(drone.cfg.start);

@@ -211,15 +211,24 @@ var trailPoints = [];
 
 function updateTrail() {
   var n = trailPoints.length;
+  var isHPF = fieldMode === 'HPF';
   for (var i = 0; i < Math.min(n, MAX_TRAIL); i++) {
     var p = trailPoints[i];
-    trailPositions[i * 3] = p.x;
+    trailPositions[i * 3]     = p.x;
     trailPositions[i * 3 + 1] = p.y;
     trailPositions[i * 3 + 2] = p.z;
     var t = i / Math.max(n - 1, 1);
-    trailColors[i * 3] = 0.1 + t * 0.1;
-    trailColors[i * 3 + 1] = 0.5 + t * 0.5;
-    trailColors[i * 3 + 2] = 0.8 + t * 0.2;
+    if (isHPF) {
+      // Purple gradient for HPF
+      trailColors[i * 3]     = 0.4 + t * 0.4;
+      trailColors[i * 3 + 1] = 0.0 + t * 0.15;
+      trailColors[i * 3 + 2] = 0.7 + t * 0.3;
+    } else {
+      // Cyan gradient for APF
+      trailColors[i * 3]     = 0.1 + t * 0.1;
+      trailColors[i * 3 + 1] = 0.5 + t * 0.5;
+      trailColors[i * 3 + 2] = 0.8 + t * 0.2;
+    }
   }
   trailGeo.setDrawRange(0, Math.min(n, MAX_TRAIL));
   trailGeo.attributes.position.needsUpdate = true;
@@ -250,6 +259,41 @@ var WALL_K_REP = 1.2;
 var WALL_D0 = 1.2;
 var GOAL_THRESH = 0.35;
 var BASE_SPEED = 0.038;
+
+// ═══════════════════════════════════════════════════
+//  HPF PARAMETERS
+//  Coulomb / Newtonian potential — the fundamental
+//  solution to Laplace's equation in 3D: φ = 1/r.
+//  Forces decay as 1/r² (no cutoff, truly global).
+//  Faster falloff than APF's (1/d−1/d₀)/d² ensures
+//  distant obstacles don't overwhelm attraction.
+// ═══════════════════════════════════════════════════
+var HPF_K_ATT  = 5.0;   // attractive  (F = K / d,  1/r gradient)
+var HPF_K_REP  = 1.5;   // repulsive   (F = K / d², Coulomb, no cutoff)
+var HPF_K_WALL = 0.6;   // wall        (F = K / d², Coulomb)
+
+// ═══════════════════════════════════════════════════
+//  FIELD MODE
+// ═══════════════════════════════════════════════════
+var fieldMode = 'APF';
+
+window.setFieldMode = function(mode) {
+  fieldMode = mode;
+  var isHPF = mode === 'HPF';
+  document.getElementById('btnAPF').className = 'field-btn' + (isHPF ? '' : ' active');
+  document.getElementById('btnHPF').className = 'field-btn' + (isHPF ? ' hpf-active' : '');
+  document.getElementById('hud-title').textContent = '\u9672 ' + mode + ' Drone Nav';
+  // Trail colour
+  document.getElementById('trail-dot').style.background =
+    isHPF ? 'rgba(200,80,255,0.6)' : 'rgba(0,200,255,0.5)';
+  document.getElementById('trail-label').textContent = mode + ' Trail';
+  // Arrow colours
+  arrowAtt.setColor(isHPF ? 0xcc44ff : 0x00ff88);
+  arrowRep.setColor(isHPF ? 0xff44aa : 0xff4444);
+  // Clear trail so colour change is immediate
+  trailPoints = [];
+  updateTrail();
+};
 
 var dronePos = START_POS.clone();
 var isRunning = true;
@@ -296,6 +340,46 @@ function computeAPF() {
       var v2 = new THREE.Vector3(); v2[ax] = -magH;
       F_rep.add(v2);
     }
+  }
+
+  return { F_att: F_att, F_rep: F_rep, total: F_att.clone().add(F_rep), distGoal: distGoal };
+}
+
+// Harmonic Potential Field — Coulomb (1/r²) formulation.
+// Attractive:  F = K / d    (gradient of ln r — log potential)
+// Repulsive:   F = K / d²   (gradient of 1/r — Newtonian, true 3D harmonic)
+// No hard cutoff: every obstacle contributes globally,
+// but 1/d² decays fast enough that distant ones are negligible.
+function computeHPF() {
+  var pos = dronePos;
+  var toGoal = GOAL_POS.clone().sub(pos);
+  var distGoal = toGoal.length();
+
+  // Attractive: 1/d decay — stronger near goal, never zero
+  var attMag = HPF_K_ATT / Math.max(distGoal, 0.3);
+  var F_att = toGoal.clone().normalize().multiplyScalar(attMag);
+
+  // Repulsive: Coulomb 1/d² — no cutoff, globally aware
+  var F_rep = new THREE.Vector3();
+  for (var i = 0; i < obstacles.length; i++) {
+    var obs = obstacles[i];
+    var diff = pos.clone().sub(obs.position);
+    var d = Math.max(diff.length() - obs.radius, 0.25);   // clamp prevents singularity
+    var mag = HPF_K_REP / (d * d);
+    F_rep.add(diff.clone().normalize().multiplyScalar(mag));
+  }
+
+  // Wall repulsion: Coulomb 1/d² — global, no hard D_WALL cutoff
+  var axes = ['x', 'y', 'z'];
+  for (var a = 0; a < axes.length; a++) {
+    var ax = axes[a];
+    var p = pos[ax];
+    var dLow  = Math.max(p + HALF, 0.1);    // dist to –HALF wall
+    var dHigh = Math.max(HALF - p, 0.1);    // dist to +HALF wall
+    var vL = new THREE.Vector3(); vL[ax]  =  HPF_K_WALL / (dLow  * dLow);
+    var vH = new THREE.Vector3(); vH[ax]  = -HPF_K_WALL / (dHigh * dHigh);
+    F_rep.add(vL);
+    F_rep.add(vH);
   }
 
   return { F_att: F_att, F_rep: F_rep, total: F_att.clone().add(F_rep), distGoal: distGoal };
@@ -350,7 +434,7 @@ function animate() {
   var speed = BASE_SPEED * speedMult;
 
   if (isRunning && !arrived) {
-    var result = computeAPF();
+    var result = fieldMode === 'HPF' ? computeHPF() : computeAPF();
     var F_att = result.F_att;
     var F_rep = result.F_rep;
     var total = result.total;

@@ -83,6 +83,43 @@ var SIM = {
 };
 
 // ═══════════════════════════════════════════════════
+//  HPF PARAMETERS
+//  Coulomb / Newtonian (1/r²) — fundamental solution
+//  to Laplace's equation in 3D.  No hard cutoff:
+//  every obstacle repels globally, 1/r² ensures fast
+//  falloff so distant ones don't overwhelm attraction.
+//  Attractive is constant-magnitude (log-potential
+//  gradient) to guarantee goal-ward force everywhere.
+// ═══════════════════════════════════════════════════
+var HPF = {
+  K_ATT:  6.0,    // constant magnitude attractive
+  K_REP:  3.0,    // Coulomb 1/d² repulsion (no cutoff)
+  K_WALL: 1.5,    // Coulomb 1/d² wall repulsion
+  D_MIN:  0.3,    // min surface-dist (prevents singularity)
+  DT:     0.012,
+  DAMP:   0.75,
+  VMAX:   0.18,
+};
+
+// ═══════════════════════════════════════════════════
+//  FIELD MODE
+// ═══════════════════════════════════════════════════
+var fieldMode = 'APF';
+
+window.setFieldMode = function(mode) {
+  fieldMode = mode;
+  var isHPF = mode === 'HPF';
+  document.getElementById('btnAPF').className = 'field-btn' + (isHPF ? '' : ' active');
+  document.getElementById('btnHPF').className = 'field-btn' + (isHPF ? ' hpf-active' : '');
+  document.getElementById('hud-title').textContent = '\u9672 ' + mode + ' Moving Obstacles';
+  document.getElementById('field-panel-title').textContent = mode + ' FORCES';
+  trailLine.material.color.setHex(isHPF ? 0xcc44ff : 0x33aaff);
+  document.getElementById('trail-dot').style.background =
+    isHPF ? 'rgba(200,80,255,0.6)' : 'rgba(0,200,255,0.5)';
+  document.getElementById('trail-label').textContent = mode + ' Trail';
+};
+
+// ═══════════════════════════════════════════════════
 //  SIMULATION STATE
 // ═══════════════════════════════════════════════════
 var vel      = new THREE.Vector3();
@@ -141,6 +178,48 @@ function computeAPF(pos) {
   return F;
 }
 
+// Harmonic Potential Field — Coulomb (1/r²) formulation.
+// Attractive:  constant K (gradient of linear potential K·r) —
+//              guarantees goal-ward force at every position.
+// Repulsive:   Coulomb 1/d² (gradient of Newtonian 1/r) —
+//              no hard cutoff, global but fast-decaying.
+function computeHPF(pos) {
+  var F = new THREE.Vector3();
+
+  var toGoal = GOAL.clone().sub(pos);
+  var dGoal  = toGoal.length();
+  // Constant attractive — always K_ATT toward goal regardless of distance
+  var Fatt   = toGoal.clone().normalize().multiplyScalar(HPF.K_ATT);
+  lastFatt   = Fatt.length();
+  F.add(Fatt);
+
+  // Coulomb 1/d² repulsion — no cutoff radius (every obstacle contributes)
+  var Frep = new THREE.Vector3();
+  for (var i = 0; i < obstacles.length; i++) {
+    var obs   = obstacles[i];
+    var toObs = pos.clone().sub(obs.mesh.position);
+    var d     = Math.max(toObs.length() - obs.radius, HPF.D_MIN);
+    Frep.add(toObs.clone().normalize().multiplyScalar(HPF.K_REP / (d * d)));
+  }
+  lastFrep = Frep.length();
+  F.add(Frep);
+
+  // Coulomb 1/d² wall repulsion — global, no D_WALL cutoff
+  var bound = HALF - 0.25;
+  var axes  = ['x', 'y', 'z'];
+  for (var a = 0; a < axes.length; a++) {
+    var ax   = axes[a];
+    var p    = pos[ax];
+    var dPos = Math.max(bound - p, 0.1);   // dist to + wall
+    var dNeg = Math.max(p + bound, 0.1);   // dist to – wall
+    F[ax] -= HPF.K_WALL / (dPos * dPos);
+    F[ax] += HPF.K_WALL / (dNeg * dNeg);
+  }
+
+  lastFnet = F.length();
+  return F;
+}
+
 // ═══════════════════════════════════════════════════
 //  MAIN LOOP
 // ═══════════════════════════════════════════════════
@@ -157,7 +236,7 @@ function animate() {
     var dt = SIM.DT * speedMul;
     var pos = droneGroup.position;
 
-    var force = computeAPF(pos);
+    var force = fieldMode === 'HPF' ? computeHPF(pos) : computeAPF(pos);
 
     if (vel.length() < 0.004) {
       stuckCtr++;

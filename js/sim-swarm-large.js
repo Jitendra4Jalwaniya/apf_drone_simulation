@@ -326,6 +326,15 @@
         var statusEl  = document.getElementById('sGPUStatus');
         var backendEl = document.getElementById('sGPUBackend');
 
+        // Respect the kill switch set on the home page
+        if (localStorage.getItem('apf_gpu_enabled') === 'false') {
+            gpuActive = false;
+            gpuCompute = null;
+            if (statusEl)  { statusEl.textContent = 'CPU FALLBACK'; statusEl.style.color = '#ff8844'; }
+            if (backendEl) { backendEl.textContent = 'GPU disabled via home page toggle'; backendEl.style.color = '#888'; }
+            return;
+        }
+
         gpuCompute = new APF.GPUSwarmCompute(NUM_DRONES, NUM_OBSTACLES);
         var ok = await gpuCompute.init();
 

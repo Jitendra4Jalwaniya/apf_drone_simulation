@@ -57,12 +57,76 @@
         letter-spacing: 0.04em;
         margin: 0;
     }
+
+    /* ── GPU kill switch ── */
+    .gpu-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 32px;
+    }
+    .gpu-toggle-label {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        color: rgba(0, 255, 231, 0.55);
+        text-transform: uppercase;
+        user-select: none;
+    }
+    .gpu-toggle-label.state {
+        min-width: 52px;
+        text-align: left;
+        transition: color 0.2s;
+    }
+    .gpu-toggle-label.state.on  { color: #00ffe7; }
+    .gpu-toggle-label.state.off { color: rgba(255, 100, 80, 0.75); }
+
+    /* pill switch */
+    .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+        position: absolute; inset: 0;
+        background: rgba(255, 100, 80, 0.25);
+        border: 1px solid rgba(255, 100, 80, 0.4);
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.25s, border-color 0.25s;
+    }
+    .slider::before {
+        content: '';
+        position: absolute;
+        width: 14px; height: 14px;
+        left: 2px; top: 2px;
+        background: rgba(255, 100, 80, 0.7);
+        border-radius: 50%;
+        transition: transform 0.25s, background 0.25s;
+    }
+    .switch input:checked + .slider {
+        background: rgba(0, 255, 231, 0.15);
+        border-color: rgba(0, 255, 231, 0.5);
+    }
+    .switch input:checked + .slider::before {
+        transform: translateX(20px);
+        background: #00ffe7;
+        box-shadow: 0 0 6px #00ffe7;
+    }
 </style>
 </head>
 <body>
 <div class="landing">
     <h1>Drone Path Planning Simulations</h1>
     <p>Artificial &amp; Harmonic Potential Field Path Planning in 3D</p>
+
+    <div class="gpu-toggle-row">
+        <span class="gpu-toggle-label">GPU Compute</span>
+        <label class="switch">
+            <input type="checkbox" id="gpuToggle" onchange="setGPU(this.checked)">
+            <span class="slider"></span>
+        </label>
+        <span class="gpu-toggle-label state" id="gpuState">OFF</span>
+    </div>
+
     <div class="sim-cards">
         <a class="sim-card" href="sims/static.html">
             <h2>01 &mdash; Static Obstacles</h2>
@@ -82,5 +146,24 @@
         </a>
     </div>
 </div>
+<script>
+    var KEY = 'apf_gpu_enabled';
+
+    function setGPU(enabled) {
+        localStorage.setItem(KEY, enabled ? 'true' : 'false');
+        var lbl = document.getElementById('gpuState');
+        lbl.textContent = enabled ? 'ON' : 'OFF';
+        lbl.className   = 'gpu-toggle-label state ' + (enabled ? 'on' : 'off');
+    }
+
+    // Restore saved preference on load (default: enabled)
+    (function () {
+        var saved   = localStorage.getItem(KEY);
+        var enabled = saved !== 'false';   // true unless explicitly disabled
+        var toggle  = document.getElementById('gpuToggle');
+        toggle.checked = enabled;
+        setGPU(enabled);
+    })();
+</script>
 </body>
 </html>

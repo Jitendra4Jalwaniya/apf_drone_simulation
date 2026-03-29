@@ -116,6 +116,44 @@ var SIM = {
 };
 
 // ═══════════════════════════════════════════════════
+//  HPF PARAMETERS
+//  Coulomb (1/r²) — fundamental 3D harmonic solution.
+//  Constant attractive (scales with per-drone kAtt to
+//  preserve arrival order). 1/r² repulsion: globally
+//  aware but fast-decaying, no hard cutoff radius.
+// ═══════════════════════════════════════════════════
+var HPF = {
+  ATT_MULT:    2.0,    // constant attract = kAtt × ATT_MULT
+  K_REP:       3.0,    // Coulomb 1/d² obstacle repulsion
+  K_WALL:      1.5,    // Coulomb 1/d² wall repulsion
+  K_DRONE_REP: 2.0,    // Coulomb 1/d² drone–drone repulsion
+  DRONE_R:     0.32,
+  D_MIN:       0.3,    // min surface dist (singularity guard)
+  DT:          0.012,
+  DAMP:        0.75,
+};
+
+// ═══════════════════════════════════════════════════
+//  FIELD MODE
+// ═══════════════════════════════════════════════════
+var fieldMode = 'APF';
+
+window.setFieldMode = function(mode) {
+  fieldMode = mode;
+  var isHPF = mode === 'HPF';
+  document.getElementById('btnAPF').className = 'field-btn' + (isHPF ? '' : ' active');
+  document.getElementById('btnHPF').className = 'field-btn' + (isHPF ? ' hpf-active' : '');
+  document.getElementById('hud-title').textContent = '\u9672 ' + mode + ' Drone Swarm';
+  document.getElementById('field-panel-title').textContent = mode + ' FORCES \u00b7 ALPHA';
+  // Update each drone trail colour
+  var apfColors = [0x33aaff, 0xff6622, 0x44ff88, 0xaa44ff];
+  var hpfColors = [0xcc44ff, 0xff44aa, 0xbb88ff, 0xff88cc];
+  drones.forEach(function(drone, i) {
+    drone.trail.line.material.color.setHex(isHPF ? hpfColors[i] : apfColors[i]);
+  });
+};
+
+// ═══════════════════════════════════════════════════
 //  SIMULATION STATE (one entry per drone)
 // ═══════════════════════════════════════════════════
 var MAX_TRAIL = 500;
@@ -220,6 +258,65 @@ function computeAPF(idx) {
   return F;
 }
 
+// Harmonic Potential Field per drone — Coulomb (1/r²).
+// Constant attractive (kAtt × ATT_MULT) preserves arrival order.
+// All repulsion uses 1/d²: globally aware, fast falloff.
+function computeHPF(idx) {
+  var drone = drones[idx];
+  var pos   = drone.group.position;
+  var F     = new THREE.Vector3();
+
+  var toGoal = GOAL.clone().sub(pos);
+  var dGoal  = toGoal.length();
+  // Constant attractive scaled by per-drone kAtt (preserves ordering)
+  var Fatt   = toGoal.clone().normalize().multiplyScalar(drone.cfg.kAtt * HPF.ATT_MULT);
+  drone.lastFatt = Fatt.length();
+  F.add(Fatt);
+
+  // Goal capture zone — pure attraction only
+  if (dGoal < 1.5) {
+    drone.lastFrep = 0;
+    drone.lastFnet = F.length();
+    return F;
+  }
+
+  var Frep = new THREE.Vector3();
+
+  // Coulomb 1/d² obstacle repulsion — no hard cutoff
+  for (var i = 0; i < obstacles.length; i++) {
+    var obs   = obstacles[i];
+    var toObs = pos.clone().sub(obs.mesh.position);
+    var d     = Math.max(toObs.length() - obs.radius, HPF.D_MIN);
+    Frep.add(toObs.clone().normalize().multiplyScalar(HPF.K_REP / (d * d)));
+  }
+
+  // Coulomb 1/d² drone–drone repulsion
+  for (var j = 0; j < drones.length; j++) {
+    if (j === idx || drones[j].reached) continue;
+    var toDrone = pos.clone().sub(drones[j].group.position);
+    var dd      = Math.max(toDrone.length() - HPF.DRONE_R * 2, HPF.D_MIN);
+    Frep.add(toDrone.clone().normalize().multiplyScalar(HPF.K_DRONE_REP / (dd * dd)));
+  }
+
+  drone.lastFrep = Frep.length();
+  F.add(Frep);
+
+  // Coulomb 1/d² wall repulsion — global, no D_WALL cutoff
+  var bound = HALF - 0.25;
+  var axes  = ['x', 'y', 'z'];
+  for (var a = 0; a < axes.length; a++) {
+    var ax   = axes[a];
+    var p    = pos[ax];
+    var dPos = Math.max(bound - p, 0.1);
+    var dNeg = Math.max(p + bound, 0.1);
+    F[ax] -= HPF.K_WALL / (dPos * dPos);
+    F[ax] += HPF.K_WALL / (dNeg * dNeg);
+  }
+
+  drone.lastFnet = F.length();
+  return F;
+}
+
 // ═══════════════════════════════════════════════════
 //  MAIN LOOP
 // ═══════════════════════════════════════════════════
@@ -240,7 +337,7 @@ function animate() {
       if (drone.reached) continue;
 
       var pos   = drone.group.position;
-      var force = computeAPF(idx);
+      var force = fieldMode === 'HPF' ? computeHPF(idx) : computeAPF(idx);
 
       if (drone.vel.length() < 0.004) {
         drone.stuckCtr++;

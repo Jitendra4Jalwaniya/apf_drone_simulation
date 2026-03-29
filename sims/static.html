@@ -11,7 +11,7 @@
 <div id="canvas-container"></div>
 
 <div id="hud">
-    <h1>&#9672; APF Drone Nav</h1>
+    <h1 id="hud-title">&#9672; APF Drone Nav</h1>
     <div class="hud-row"><span class="hud-label">POS X</span><span class="hud-val" id="val-x">-4.50</span></div>
     <div class="hud-row"><span class="hud-label">POS Y</span><span class="hud-val" id="val-y">-4.50</span></div>
     <div class="hud-row"><span class="hud-label">POS Z</span><span class="hud-val" id="val-z">-4.50</span></div>
@@ -28,10 +28,14 @@
     <div class="legend-row"><div class="dot" style="background:#4488ff;box-shadow:0 0 6px #4488ff"></div> Drone</div>
     <div class="legend-row"><div class="dot" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></div> Goal</div>
     <div class="legend-row"><div class="dot" style="background:#ff4444;box-shadow:0 0 6px #ff4444"></div> Obstacle</div>
-    <div class="legend-row"><div class="dot" style="background:rgba(0,200,255,0.5)"></div> APF Trail</div>
+    <div class="legend-row"><div class="dot" id="trail-dot" style="background:rgba(0,200,255,0.5)"></div> <span id="trail-label">APF Trail</span></div>
 </div>
 
 <div id="controls">
+    <div class="field-toggle">
+        <button class="field-btn active" id="btnAPF" onclick="setFieldMode('APF')">APF</button>
+        <button class="field-btn" id="btnHPF" onclick="setFieldMode('HPF')">HPF</button>
+    </div>
     <button class="btn active" id="btn-play" onclick="togglePlay()">&#9208; PAUSE</button>
     <button class="btn btn-reset" onclick="resetSim()">&#8634; RESET</button>
     <span class="speed-label">SPEED</span>

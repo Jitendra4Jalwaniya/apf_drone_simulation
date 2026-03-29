@@ -122,17 +122,18 @@ function computeAPF(pos) {
   F.add(Frep);
 
   var bound = HALF - 0.25;
+  var wallScale = Math.max(0.0, Math.min(1.0, (dGoal - 0.4) / 2.0));
   var axes = ['x', 'y', 'z'];
   for (var a = 0; a < axes.length; a++) {
     var ax = axes[a];
     var p = pos[ax];
     var dPos = bound - p;
     if (dPos < SIM.D_WALL && dPos > 0.001) {
-      F[ax] -= SIM.K_WALL * (1/dPos - 1/SIM.D_WALL) / (dPos * dPos);
+      F[ax] -= SIM.K_WALL * (1/dPos - 1/SIM.D_WALL) / (dPos * dPos) * wallScale;
     }
     var dNeg = p + bound;
     if (dNeg < SIM.D_WALL && dNeg > 0.001) {
-      F[ax] += SIM.K_WALL * (1/dNeg - 1/SIM.D_WALL) / (dNeg * dNeg);
+      F[ax] += SIM.K_WALL * (1/dNeg - 1/SIM.D_WALL) / (dNeg * dNeg) * wallScale;
     }
   }
 
@@ -196,6 +197,8 @@ function animate() {
     if (pos.distanceTo(GOAL) < 0.55) {
       reached = true;
       running = false;
+      scene.remove(droneGroup);
+      scene.remove(trailLine);
       onGoalReached();
     }
 
@@ -281,6 +284,8 @@ btnReset.addEventListener('click', function() {
   running = false;
   reached = false;
   vel.set(0, 0, 0);
+  if (!scene.children.includes(droneGroup)) scene.add(droneGroup);
+  if (!scene.children.includes(trailLine)) scene.add(trailLine);
   droneGroup.position.copy(START);
   droneGroup.rotation.set(0, 0, 0);
   trailPoints.length = 0;

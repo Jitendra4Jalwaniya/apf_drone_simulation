@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APF Drone Swarm &mdash; 100 Drones (WebGPU)</title>
+<link rel="stylesheet" href="../css/common.css">
+<style>
+/* GPU badge colours */
+#sGPUStatus.gpu  { color: #00ffe7; }
+#sGPUStatus.cpu  { color: #ff8844; }
+
+/* Arrived progress bar */
+#arrived-bar-bg {
+    height: 6px;
+    background: rgba(0,255,231,0.12);
+    border-radius: 3px;
+    margin-top: 6px;
+}
+#arrived-bar-fill {
+    height: 100%;
+    background: #00ffe7;
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s;
+}
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<!-- ── HUD ───────────────────────────────────────────────────────────────── -->
+<div id="hud">
+    <h1 id="hud-title">&#9672; GPU Drone Swarm</h1>
+
+    <div class="hud-row">
+        <span class="hud-label">STATUS</span>
+        <span class="hud-val" id="sStatus">STANDBY</span>
+    </div>
+    <div class="hud-row">
+        <span class="hud-label">ARRIVED</span>
+        <span class="hud-val" id="sArrived">0 / 100</span>
+    </div>
+    <div class="hud-row">
+        <span class="hud-label">FPS</span>
+        <span class="hud-val" id="sFPS">—</span>
+    </div>
+
+    <hr class="hud-divider">
+    <div class="section-head">GPU Compute</div>
+
+    <div class="hud-row">
+        <span class="hud-label">ENGINE</span>
+        <span class="hud-val" id="sGPUStatus">DETECTING&hellip;</span>
+    </div>
+    <div class="hud-row">
+        <span class="hud-label">BACKEND</span>
+        <span class="hud-val" id="sGPUBackend" style="font-size:9px;color:#888">—</span>
+    </div>
+
+    <div id="status-text">&#11041; AWAITING LAUNCH</div>
+</div>
+
+<!-- ── Legend ────────────────────────────────────────────────────────────── -->
+<div id="legend">
+    <h2>LEGEND</h2>
+    <div class="legend-row"><div class="dot" style="background:hsl(0,100%,62%);box-shadow:0 0 6px hsl(0,100%,62%)"></div> Drone (flying)</div>
+    <div class="legend-row"><div class="dot" style="background:#ffd700;box-shadow:0 0 6px #ffd700"></div> Drone (arrived)</div>
+    <div class="legend-row"><div class="dot" style="background:#ff4444;box-shadow:0 0 6px #ff4444"></div> Goal</div>
+    <div class="legend-row"><div class="dot" style="background:#ff3333;box-shadow:0 0 6px #ff3333"></div> Obstacles</div>
+</div>
+
+<!-- ── Controls ──────────────────────────────────────────────────────────── -->
+<div id="controls">
+    <button class="btn" id="btnStart" onclick="togglePlay()">&#9654; LAUNCH</button>
+    <button class="btn btn-reset" id="btnReset" onclick="resetSim()">&#8634; RESET</button>
+    <span class="speed-label">SPEED</span>
+    <input type="range" id="speed-input" min="0.5" max="4" step="0.1" value="1.0">
+    <span class="speed-label" id="speed-val">1.0&times;</span>
+</div>
+
+<div class="hint">DRAG TO ORBIT &middot; SCROLL TO ZOOM</div>
+
+<!-- ── Goal overlay ──────────────────────────────────────────────────────── -->
+<div id="goal-overlay">
+    <div class="goal-box">
+        <div class="goal-title">SWARM ARRIVED</div>
+        <div class="goal-sub">ALL 100 DRONES &mdash; MISSION COMPLETE</div>
+    </div>
+</div>
+
+<!-- ── Scripts ───────────────────────────────────────────────────────────── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../js/shared/engine.js"></script>
+<script src="../js/shared/environment.js"></script>
+<script src="../js/shared/obstacles.js"></script>
+<script src="../js/shared/markers.js"></script>
+<script src="../js/shared/gpu-compute.js"></script>
+<script src="../js/shared/trails.js"></script>
+<script src="../js/sim-swarm-large.js"></script>
+</body>
+</html>

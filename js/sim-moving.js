@@ -58,14 +58,11 @@ var obstacles = APF.createMovingObstacles(scene, NUM_OBS, HALF, [
 // ═══════════════════════════════════════════════════
 //  TRAIL
 // ═══════════════════════════════════════════════════
-var MAX_TRAIL = 600;
-var trailPoints = [];
-var trailGeo = new THREE.BufferGeometry();
-var trailLine = new THREE.Line(
-  trailGeo,
-  new THREE.LineBasicMaterial({ color: 0x33aaff, transparent: true, opacity: 0.75 })
-);
-scene.add(trailLine);
+var trail = APF.createTrail(scene, {
+  maxPoints:  600,
+  gradientFn: APF.trailGradients.fromColor(0x33aaff),
+  opacity:    0.75,
+});
 
 // ═══════════════════════════════════════════════════
 //  APF PARAMETERS
@@ -113,7 +110,7 @@ window.setFieldMode = function(mode) {
   document.getElementById('btnHPF').className = 'field-btn' + (isHPF ? ' hpf-active' : '');
   document.getElementById('hud-title').textContent = '\u9672 ' + mode + ' Moving Obstacles';
   document.getElementById('field-panel-title').textContent = mode + ' FORCES';
-  trailLine.material.color.setHex(isHPF ? 0xcc44ff : 0x33aaff);
+  APF.setTrailGradient(trail, isHPF ? APF.trailGradients.fromColor(0xcc44ff) : APF.trailGradients.fromColor(0x33aaff));
   document.getElementById('trail-dot').style.background =
     isHPF ? 'rgba(200,80,255,0.6)' : 'rgba(0,200,255,0.5)';
   document.getElementById('trail-label').textContent = mode + ' Trail';
@@ -218,9 +215,7 @@ function animate() {
 
     pathLen += pos.distanceTo(prevPos);
     prevPos.copy(pos.clone());
-    trailPoints.push(pos.clone());
-    if (trailPoints.length > MAX_TRAIL) trailPoints.shift();
-    if (trailPoints.length >= 2) trailGeo.setFromPoints(trailPoints);
+    APF.pushTrailPoint(trail, pos);
 
     APF.tiltDrone(droneGroup, vel);
 
@@ -228,7 +223,7 @@ function animate() {
       reached = true;
       running = false;
       scene.remove(droneGroup);
-      scene.remove(trailLine);
+      APF.removeTrail(scene, trail);
       onGoalReached();
     }
 
@@ -315,12 +310,10 @@ btnReset.addEventListener('click', function() {
   reached = false;
   vel.set(0, 0, 0);
   if (!scene.children.includes(droneGroup)) scene.add(droneGroup);
-  if (!scene.children.includes(trailLine)) scene.add(trailLine);
+  APF.addTrail(scene, trail);
   droneGroup.position.copy(START);
   droneGroup.rotation.set(0, 0, 0);
-  trailPoints.length = 0;
-  trailGeo = new THREE.BufferGeometry();
-  trailLine.geometry = trailGeo;
+  APF.clearTrail(trail);
   pathLen = 0;
   prevPos.copy(START);
   stuckCtr = 0;

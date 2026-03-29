@@ -2,13 +2,14 @@
 
 A collection of real-time, interactive **3D simulations** of drones navigating through obstacles using **Artificial Potential Fields (APF)** and **Harmonic Potential Fields (HPF)** — rendered entirely in the browser with [Three.js](https://threejs.org/).
 
-![Status](https://img.shields.io/badge/status-active-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) ![Tech](https://img.shields.io/badge/built%20with-Three.js-black)
+![Status](https://img.shields.io/badge/status-active-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) ![Tech](https://img.shields.io/badge/built%20with-Three.js-black) ![WebGPU](https://img.shields.io/badge/WebGPU-compute-orange)
 
 <p align="center">
   <img src="screenshot.png" alt="APF Drone Simulation Screenshot" width="800"/>
 </p>
 
 > No build steps, no dependencies to install. Open `index.html` in a modern browser and run instantly.
+> Simulation 04 uses **WebGPU compute shaders** for GPU-accelerated physics — requires Chrome 113+ or Safari 18+. All other simulations run on any WebGL-capable browser.
 
 ---
 
@@ -29,6 +30,20 @@ A single drone navigates from one corner of a 10×10×10 cube to the opposite co
 - **Goal capture zone** — repulsive forces suspended within 1.5 units of goal to prevent corner trapping.
 - **Disappear on arrival** — each drone is removed from the scene on reaching the goal.
 - **Per-drone HUD** — tracks Standby → Flying → #1–#4 Arrived, highlighted in gold / silver / bronze / purple.
+
+### 4. 100-Drone Swarm (WebGPU) ⚡
+**100 drones** navigate simultaneously toward a central goal in a 14×14×14 cube.
+
+#### GPU-accelerated physics
+Force integration runs in a **WGSL compute shader** dispatched to the GPU each frame. All 100 drones' APF forces (attraction, obstacle repulsion, inter-drone repulsion, wall repulsion, velocity integration) are computed in parallel — one GPU thread per drone. Physics results are read back via a staging buffer and applied to Three.js each frame.
+
+- **Ping-pong double buffering** — two storage buffers swap each frame so `dronesIn` always holds a consistent pre-step snapshot, preventing intra-dispatch data races.
+- **`THREE.InstancedMesh`** — all 100 drones rendered in a single draw call with per-instance rainbow colours.
+- **Per-drone trails** — each drone leaves a colour-coded path using the shared `trails.js` module.
+- **CPU fallback** — if WebGPU is unavailable the simulation runs an identical JS physics path transparently.
+- **GPU kill switch** — a toggle on the home page (`localStorage: apf_gpu_enabled`) lets you force CPU mode globally without touching any code.
+
+> Requires Chrome 113+ or Safari 18+ for GPU mode. CPU fallback works in any WebGL browser.
 
 ---
 
@@ -99,20 +114,21 @@ Walls and drone-drone repulsion use the same formula.
 
 ### APF
 
-| Parameter | Moving Obstacles | Swarm | Description |
-|---|---|---|---|
-| `K_ATT` | 2.5 | 3.2 / 2.6 / 2.0 / 1.5 | Attractive gain (per drone in swarm) |
-| `K_REP` | 40.0 | 40.0 | Obstacle repulsion gain |
-| `D0` | 3.8 | 3.8 | Obstacle influence radius |
-| `K_WALL` | 14.0 | 14.0 | Wall repulsion gain |
-| `D_WALL` | 2.2 | 2.2 | Wall influence radius |
-| `K_DRONE_REP` | — | 28.0 | Drone-drone repulsion gain |
-| `D_DRONE` | — | 2.2 | Drone-drone influence radius |
-| `VMAX` | 0.18 | 0.22 / 0.17 / 0.14 / 0.11 | Max speed (per drone in swarm) |
+| Parameter | Moving Obstacles | Swarm (4) | Swarm 100 | Description |
+|---|---|---|---|---|
+| `K_ATT` | 2.5 | 3.2 / 2.6 / 2.0 / 1.5 | 2.5 | Attractive gain |
+| `K_REP` | 40.0 | 40.0 | 14.0 | Obstacle repulsion gain |
+| `D0` | 3.8 | 3.8 | 2.5 | Obstacle influence radius |
+| `K_WALL` | 14.0 | 14.0 | 9.0 | Wall repulsion gain |
+| `D_WALL` | 2.2 | 2.2 | 1.8 | Wall influence radius |
+| `K_DRONE_REP` | — | 28.0 | 2.0 | Drone-drone repulsion gain |
+| `D_DRONE` | — | 2.2 | 1.2 | Drone-drone influence radius |
+| `VMAX` | 0.18 | 0.22–0.11 | 0.08 | Max speed (units / step) |
+| `DT` | 0.012 | 0.012 | 0.012 | Time step |
 
 ### HPF
 
-| Parameter | Moving Obstacles | Swarm | Description |
+| Parameter | Moving Obstacles | Swarm (4) | Description |
 |---|---|---|---|
 | `K_ATT` | 6.0 | 3.2–6.4 (× 2.0 mult) | Constant attractive gain |
 | `K_REP` | 3.0 | 3.0 | Coulomb repulsion gain (no cutoff) |
@@ -139,16 +155,18 @@ Walls and drone-drone repulsion use the same formula.
 ```bash
 git clone https://github.com/Jitendra4Jalwaniya/apf_drone_simulation.git
 cd apf_drone_simulation
-open index.html   # landing page with links to all three simulations
+open index.html   # landing page with links to all four simulations
 ```
 
-> Requires any modern browser with WebGL support (Chrome, Firefox, Safari, Edge).
+> Simulations 01–03 require any modern browser with WebGL support (Chrome, Firefox, Safari, Edge).
+> Simulation 04 additionally requires **WebGPU** — Chrome 113+ or Safari 18+. A CPU fallback runs automatically in other browsers.
 
 ---
 
 ## Tech Stack
 
 - **[Three.js](https://threejs.org/)** (r128) — 3D rendering via WebGL
+- **WebGPU** — compute shader physics for the 100-drone swarm (WGSL)
 - **Vanilla HTML / CSS / JavaScript** — no frameworks, no build tools
 - **Google Fonts** — Share Tech Mono, Exo 2
 
@@ -157,8 +175,8 @@ open index.html   # landing page with links to all three simulations
 ## TODO
 
 - [x] Introduce a new version containing **harmonic potential fields** for smoother, curl-free navigation without local minima.
-- [ ] Create bigger drone swarm (16-50-100 drones) with single target, all hitting it in random order.
-- [ ] Turn the obstacles in interceptors.
+- [x] Create bigger drone swarm (100 drones) with single target, GPU-accelerated via WebGPU compute shaders.
+- [ ] Turn the obstacles into interceptors.
 - [ ] Scan a room with lot of objects lying around, convert it into a real 3D model of the room, then ask the drone to navigate from one corner to another.
 
 ---

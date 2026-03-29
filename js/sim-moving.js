@@ -133,47 +133,20 @@ var frame    = 0;
 var lastFatt = 0, lastFrep = 0, lastFnet = 0;
 
 function computeAPF(pos) {
-  var F = new THREE.Vector3();
-
   var toGoal = GOAL.clone().sub(pos);
-  var dGoal = toGoal.length();
-  var Fatt = dGoal < SIM.D_STAR
+  var dGoal  = toGoal.length();
+  var Fatt   = dGoal < SIM.D_STAR
     ? toGoal.clone().multiplyScalar(SIM.K_ATT)
     : toGoal.clone().normalize().multiplyScalar(SIM.K_ATT * SIM.D_STAR);
-
   lastFatt = Fatt.length();
-  F.add(Fatt);
 
-  var Frep = new THREE.Vector3();
-  for (var i = 0; i < obstacles.length; i++) {
-    var obs = obstacles[i];
-    var toObs = pos.clone().sub(obs.mesh.position);
-    var raw = toObs.length();
-    var d = Math.max(raw - obs.radius, 0.05);
-    if (d < SIM.D0) {
-      var mag = SIM.K_REP * (1/d - 1/SIM.D0) / (d * d);
-      Frep.add(toObs.clone().normalize().multiplyScalar(mag));
-    }
-  }
-  lastFrep = Frep.length();
-  F.add(Frep);
-
-  var bound = HALF - 0.25;
+  var obsNorm   = obstacles.map(function(o) { return { pos: o.mesh.position, radius: o.radius }; });
   var wallScale = Math.max(0.0, Math.min(1.0, (dGoal - 0.4) / 2.0));
-  var axes = ['x', 'y', 'z'];
-  for (var a = 0; a < axes.length; a++) {
-    var ax = axes[a];
-    var p = pos[ax];
-    var dPos = bound - p;
-    if (dPos < SIM.D_WALL && dPos > 0.001) {
-      F[ax] -= SIM.K_WALL * (1/dPos - 1/SIM.D_WALL) / (dPos * dPos) * wallScale;
-    }
-    var dNeg = p + bound;
-    if (dNeg < SIM.D_WALL && dNeg > 0.001) {
-      F[ax] += SIM.K_WALL * (1/dNeg - 1/SIM.D_WALL) / (dNeg * dNeg) * wallScale;
-    }
-  }
+  var Frep = APF.obstacleForceAPF(pos, obsNorm, { K_REP: SIM.K_REP, D0: SIM.D0 });
+  Frep.add(APF.wallForceAPF(pos, HALF - 0.25, { K_WALL: SIM.K_WALL, D_WALL: SIM.D_WALL }, wallScale));
+  lastFrep = Frep.length();
 
+  var F = Fatt.clone().add(Frep);
   lastFnet = F.length();
   return F;
 }
@@ -184,38 +157,16 @@ function computeAPF(pos) {
 // Repulsive:   Coulomb 1/d² (gradient of Newtonian 1/r) —
 //              no hard cutoff, global but fast-decaying.
 function computeHPF(pos) {
-  var F = new THREE.Vector3();
-
   var toGoal = GOAL.clone().sub(pos);
-  var dGoal  = toGoal.length();
-  // Constant attractive — always K_ATT toward goal regardless of distance
   var Fatt   = toGoal.clone().normalize().multiplyScalar(HPF.K_ATT);
   lastFatt   = Fatt.length();
-  F.add(Fatt);
 
-  // Coulomb 1/d² repulsion — no cutoff radius (every obstacle contributes)
-  var Frep = new THREE.Vector3();
-  for (var i = 0; i < obstacles.length; i++) {
-    var obs   = obstacles[i];
-    var toObs = pos.clone().sub(obs.mesh.position);
-    var d     = Math.max(toObs.length() - obs.radius, HPF.D_MIN);
-    Frep.add(toObs.clone().normalize().multiplyScalar(HPF.K_REP / (d * d)));
-  }
+  var obsNorm = obstacles.map(function(o) { return { pos: o.mesh.position, radius: o.radius }; });
+  var Frep = APF.obstacleForceHPF(pos, obsNorm, { K_REP: HPF.K_REP, D_MIN: HPF.D_MIN });
+  Frep.add(APF.wallForceHPF(pos, HALF - 0.25, { K_WALL: HPF.K_WALL }));
   lastFrep = Frep.length();
-  F.add(Frep);
 
-  // Coulomb 1/d² wall repulsion — global, no D_WALL cutoff
-  var bound = HALF - 0.25;
-  var axes  = ['x', 'y', 'z'];
-  for (var a = 0; a < axes.length; a++) {
-    var ax   = axes[a];
-    var p    = pos[ax];
-    var dPos = Math.max(bound - p, 0.1);   // dist to + wall
-    var dNeg = Math.max(p + bound, 0.1);   // dist to – wall
-    F[ax] -= HPF.K_WALL / (dPos * dPos);
-    F[ax] += HPF.K_WALL / (dNeg * dNeg);
-  }
-
+  var F = Fatt.clone().add(Frep);
   lastFnet = F.length();
   return F;
 }

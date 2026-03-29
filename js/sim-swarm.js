@@ -198,7 +198,6 @@ var frame          = 0;
 function computeAPF(idx) {
   var drone = drones[idx];
   var pos   = drone.group.position;
-  var F     = new THREE.Vector3();
 
   var toGoal = GOAL.clone().sub(pos);
   var dGoal  = toGoal.length();
@@ -206,54 +205,30 @@ function computeAPF(idx) {
     ? toGoal.clone().multiplyScalar(drone.cfg.kAtt)
     : toGoal.clone().normalize().multiplyScalar(drone.cfg.kAtt * SIM.D_STAR);
   drone.lastFatt = Fatt.length();
-  F.add(Fatt);
 
-  // Goal capture zone
+  // Goal capture zone — pure attraction only
   if (dGoal < 1.5) {
     drone.lastFrep = 0;
-    drone.lastFnet = F.length();
-    return F;
+    drone.lastFnet = Fatt.length();
+    return Fatt;
   }
 
-  var Frep = new THREE.Vector3();
-  for (var i = 0; i < obstacles.length; i++) {
-    var obs = obstacles[i];
-    var toObs = pos.clone().sub(obs.mesh.position);
-    var raw   = toObs.length();
-    var d     = Math.max(raw - obs.radius, 0.05);
-    if (d < SIM.D0) {
-      var mag = SIM.K_REP * (1/d - 1/SIM.D0) / (d * d);
-      Frep.add(toObs.clone().normalize().multiplyScalar(mag));
-    }
-  }
+  var obsNorm = obstacles.map(function(o) { return { pos: o.mesh.position, radius: o.radius }; });
+  var Frep = APF.obstacleForceAPF(pos, obsNorm, { K_REP: SIM.K_REP, D0: SIM.D0 });
 
+  // Drone-drone APF repulsion (sim-specific — kept local)
   for (var j = 0; j < drones.length; j++) {
     if (j === idx || drones[j].reached) continue;
     var toDrone = pos.clone().sub(drones[j].group.position);
-    var rawD    = toDrone.length();
-    var dd      = Math.max(rawD - SIM.DRONE_R * 2, 0.05);
-    if (dd < SIM.D_DRONE) {
-      var magD = SIM.K_DRONE_REP * (1/dd - 1/SIM.D_DRONE) / (dd * dd);
-      Frep.add(toDrone.clone().normalize().multiplyScalar(magD));
-    }
+    var dd      = Math.max(toDrone.length() - SIM.DRONE_R * 2, 0.05);
+    if (dd < SIM.D_DRONE)
+      Frep.add(toDrone.clone().normalize().multiplyScalar(SIM.K_DRONE_REP * (1/dd - 1/SIM.D_DRONE) / (dd * dd)));
   }
 
+  Frep.add(APF.wallForceAPF(pos, HALF - 0.25, { K_WALL: SIM.K_WALL, D_WALL: SIM.D_WALL }));
   drone.lastFrep = Frep.length();
-  F.add(Frep);
 
-  var bound = HALF - 0.25;
-  var axes = ['x', 'y', 'z'];
-  for (var a = 0; a < axes.length; a++) {
-    var ax = axes[a];
-    var p    = pos[ax];
-    var dPos = bound - p;
-    if (dPos < SIM.D_WALL && dPos > 0.001)
-      F[ax] -= SIM.K_WALL * (1/dPos - 1/SIM.D_WALL) / (dPos * dPos);
-    var dNeg = p + bound;
-    if (dNeg < SIM.D_WALL && dNeg > 0.001)
-      F[ax] += SIM.K_WALL * (1/dNeg - 1/SIM.D_WALL) / (dNeg * dNeg);
-  }
-
+  var F = Fatt.clone().add(Frep);
   drone.lastFnet = F.length();
   return F;
 }
@@ -264,33 +239,23 @@ function computeAPF(idx) {
 function computeHPF(idx) {
   var drone = drones[idx];
   var pos   = drone.group.position;
-  var F     = new THREE.Vector3();
 
   var toGoal = GOAL.clone().sub(pos);
   var dGoal  = toGoal.length();
-  // Constant attractive scaled by per-drone kAtt (preserves ordering)
   var Fatt   = toGoal.clone().normalize().multiplyScalar(drone.cfg.kAtt * HPF.ATT_MULT);
   drone.lastFatt = Fatt.length();
-  F.add(Fatt);
 
   // Goal capture zone — pure attraction only
   if (dGoal < 1.5) {
     drone.lastFrep = 0;
-    drone.lastFnet = F.length();
-    return F;
+    drone.lastFnet = Fatt.length();
+    return Fatt;
   }
 
-  var Frep = new THREE.Vector3();
+  var obsNorm = obstacles.map(function(o) { return { pos: o.mesh.position, radius: o.radius }; });
+  var Frep = APF.obstacleForceHPF(pos, obsNorm, { K_REP: HPF.K_REP, D_MIN: HPF.D_MIN });
 
-  // Coulomb 1/d² obstacle repulsion — no hard cutoff
-  for (var i = 0; i < obstacles.length; i++) {
-    var obs   = obstacles[i];
-    var toObs = pos.clone().sub(obs.mesh.position);
-    var d     = Math.max(toObs.length() - obs.radius, HPF.D_MIN);
-    Frep.add(toObs.clone().normalize().multiplyScalar(HPF.K_REP / (d * d)));
-  }
-
-  // Coulomb 1/d² drone–drone repulsion
+  // Drone-drone HPF repulsion (sim-specific — kept local)
   for (var j = 0; j < drones.length; j++) {
     if (j === idx || drones[j].reached) continue;
     var toDrone = pos.clone().sub(drones[j].group.position);
@@ -298,21 +263,10 @@ function computeHPF(idx) {
     Frep.add(toDrone.clone().normalize().multiplyScalar(HPF.K_DRONE_REP / (dd * dd)));
   }
 
+  Frep.add(APF.wallForceHPF(pos, HALF - 0.25, { K_WALL: HPF.K_WALL }));
   drone.lastFrep = Frep.length();
-  F.add(Frep);
 
-  // Coulomb 1/d² wall repulsion — global, no D_WALL cutoff
-  var bound = HALF - 0.25;
-  var axes  = ['x', 'y', 'z'];
-  for (var a = 0; a < axes.length; a++) {
-    var ax   = axes[a];
-    var p    = pos[ax];
-    var dPos = Math.max(bound - p, 0.1);
-    var dNeg = Math.max(p + bound, 0.1);
-    F[ax] -= HPF.K_WALL / (dPos * dPos);
-    F[ax] += HPF.K_WALL / (dNeg * dNeg);
-  }
-
+  var F = Fatt.clone().add(Frep);
   drone.lastFnet = F.length();
   return F;
 }

@@ -35,9 +35,9 @@
         D_DRONE:     1.2,   // inter-drone repulsion range
         K_WALL:      9.0,   // wall repulsion gain
         D_WALL:      1.8,   // wall repulsion cutoff
-        DT:          0.016, // time step
+        DT:          0.012, // time step  (matches sim-swarm)
         DAMP:        0.82,  // velocity damping per step
-        VMAX:        0.14,  // maximum speed (units / step)
+        VMAX:        0.08,  // maximum speed (units / step)
         GOAL_THRESH: 0.55,  // arrival distance
         NEAR_GOAL:   2.0,   // disable repulsion inside this radius of goal
     };
@@ -59,6 +59,7 @@
 
     var obstacles   = [];   // [{mesh, vel, radius}]
     var droneColors = [];   // THREE.Color per drone (rainbow)
+    var droneTrails = [];   // APF trail object per drone
 
     // Three.js handles
     var engine, scene, camera, renderer;
@@ -282,9 +283,15 @@
         droneMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         scene.add(droneMesh);
 
-        // Rainbow colours (one per drone, persists after arrival as gold)
+        // Rainbow colours + per-drone trails
         for (var i = 0; i < NUM_DRONES; i++) {
-            droneColors.push(hslColor(i / NUM_DRONES));
+            var col = hslColor(i / NUM_DRONES);
+            droneColors.push(col);
+            droneTrails.push(APF.createTrail(scene, {
+                color:     col,
+                maxPoints: 100,
+                opacity:   0.55,
+            }));
         }
 
         updateDroneInstances();
@@ -310,6 +317,17 @@
         }
         droneMesh.instanceMatrix.needsUpdate = true;
         if (droneMesh.instanceColor) droneMesh.instanceColor.needsUpdate = true;
+    }
+
+    var _trailPos = new THREE.Vector3();  // reused each frame to avoid GC
+
+    function updateDroneTrails() {
+        for (var i = 0; i < NUM_DRONES; i++) {
+            var b = i * 8;
+            if (droneData[b + 3] > 0.5) continue;  // skip arrived drones
+            _trailPos.set(droneData[b], droneData[b + 1], droneData[b + 2]);
+            APF.pushTrailPoint(droneTrails[i], _trailPos);
+        }
     }
 
     function countArrived() {
@@ -411,6 +429,7 @@
 
             arrivedCount = countArrived();
             updateDroneInstances();
+            updateDroneTrails();
             frame++;
 
             if (arrivedCount >= NUM_DRONES) {
@@ -467,6 +486,7 @@
             gpuCompute.uploadObstacles(obsData);
         }
 
+        droneTrails.forEach(function (t) { APF.clearTrail(t); });
         updateDroneInstances();
         updateHUD();
     };

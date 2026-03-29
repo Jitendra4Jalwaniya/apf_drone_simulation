@@ -197,43 +197,13 @@ droneGroup.position.copy(START_POS);
 // ═══════════════════════════════════════════════════
 //  TRAIL
 // ═══════════════════════════════════════════════════
-var MAX_TRAIL = 1200;
-var trailPositions = new Float32Array(MAX_TRAIL * 3);
-var trailColors = new Float32Array(MAX_TRAIL * 3);
-var trailGeo = new THREE.BufferGeometry();
-trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-trailGeo.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
-var trailMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
-var trailLine = new THREE.Line(trailGeo, trailMat);
-scene.add(trailLine);
-
-var trailPoints = [];
-
-function updateTrail() {
-  var n = trailPoints.length;
-  var isHPF = fieldMode === 'HPF';
-  for (var i = 0; i < Math.min(n, MAX_TRAIL); i++) {
-    var p = trailPoints[i];
-    trailPositions[i * 3]     = p.x;
-    trailPositions[i * 3 + 1] = p.y;
-    trailPositions[i * 3 + 2] = p.z;
-    var t = i / Math.max(n - 1, 1);
-    if (isHPF) {
-      // Purple gradient for HPF
-      trailColors[i * 3]     = 0.4 + t * 0.4;
-      trailColors[i * 3 + 1] = 0.0 + t * 0.15;
-      trailColors[i * 3 + 2] = 0.7 + t * 0.3;
-    } else {
-      // Cyan gradient for APF
-      trailColors[i * 3]     = 0.1 + t * 0.1;
-      trailColors[i * 3 + 1] = 0.5 + t * 0.5;
-      trailColors[i * 3 + 2] = 0.8 + t * 0.2;
-    }
-  }
-  trailGeo.setDrawRange(0, Math.min(n, MAX_TRAIL));
-  trailGeo.attributes.position.needsUpdate = true;
-  trailGeo.attributes.color.needsUpdate = true;
-}
+var trail = APF.createTrail(scene, {
+  maxPoints:  1200,
+  gradientFn: APF.trailGradients.apf,
+  opacity:    0.7,
+  blending:   THREE.AdditiveBlending,
+  depthWrite: false,
+});
 
 // ═══════════════════════════════════════════════════
 //  FORCE ARROWS
@@ -291,8 +261,8 @@ window.setFieldMode = function(mode) {
   arrowAtt.setColor(isHPF ? 0xcc44ff : 0x00ff88);
   arrowRep.setColor(isHPF ? 0xff44aa : 0xff4444);
   // Clear trail so colour change is immediate
-  trailPoints = [];
-  updateTrail();
+  APF.setTrailGradient(trail, isHPF ? APF.trailGradients.hpf : APF.trailGradients.apf);
+  APF.clearTrail(trail);
 };
 
 var dronePos = START_POS.clone();
@@ -359,8 +329,7 @@ window.togglePlay = togglePlay;
 function resetSim() {
   dronePos.copy(START_POS);
   droneGroup.position.copy(START_POS);
-  trailPoints = [];
-  updateTrail();
+  APF.clearTrail(trail);
   arrived = false;
   isRunning = true;
   stuckTimer = 0;
@@ -414,9 +383,7 @@ function animate() {
     droneGroup.position.copy(dronePos);
     pointLight1.position.copy(dronePos);
 
-    trailPoints.push(dronePos.clone());
-    if (trailPoints.length > MAX_TRAIL) trailPoints.shift();
-    updateTrail();
+    APF.pushTrailPoint(trail, dronePos);
 
     bodyMesh.rotation.y += dt * 2.5;
     bodyMesh.rotation.z += dt * 1.2;

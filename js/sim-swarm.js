@@ -149,26 +149,17 @@ window.setFieldMode = function(mode) {
   var apfColors = [0x33aaff, 0xff6622, 0x44ff88, 0xaa44ff];
   var hpfColors = [0xcc44ff, 0xff44aa, 0xbb88ff, 0xff88cc];
   drones.forEach(function(drone, i) {
-    drone.trail.line.material.color.setHex(isHPF ? hpfColors[i] : apfColors[i]);
+    APF.setTrailGradient(drone.trail, APF.trailGradients.fromColor(isHPF ? hpfColors[i] : apfColors[i]));
   });
 };
 
 // ═══════════════════════════════════════════════════
 //  SIMULATION STATE (one entry per drone)
 // ═══════════════════════════════════════════════════
-var MAX_TRAIL = 500;
-
 var drones = DRONE_CONFIGS.map(function(cfg) {
   var droneObj = APF.buildDrone(cfg);
   droneObj.group.position.copy(cfg.start);
   scene.add(droneObj.group);
-
-  var trailGeo = new THREE.BufferGeometry();
-  var trailLine = new THREE.Line(
-    trailGeo,
-    new THREE.LineBasicMaterial({ color: cfg.trailColor, transparent: true, opacity: 0.75 })
-  );
-  scene.add(trailLine);
 
   return {
     cfg:         cfg,
@@ -180,7 +171,7 @@ var drones = DRONE_CONFIGS.map(function(cfg) {
     stuckCtr:    0,
     reached:     false,
     arrivalRank: null,
-    trail:       { points: [], geo: trailGeo, line: trailLine },
+    trail:       APF.createTrail(scene, { color: cfg.trailColor, maxPoints: 500, opacity: 0.75 }),
     lastFatt:    0,
     lastFrep:    0,
     lastFnet:    0,
@@ -334,9 +325,7 @@ function animate() {
 
       drone.pathLen += pos.distanceTo(drone.prevPos);
       drone.prevPos.copy(pos.clone());
-      drone.trail.points.push(pos.clone());
-      if (drone.trail.points.length > MAX_TRAIL) drone.trail.points.shift();
-      if (drone.trail.points.length >= 2) drone.trail.geo.setFromPoints(drone.trail.points);
+      APF.pushTrailPoint(drone.trail, pos);
 
       APF.tiltDrone(drone.group, drone.vel);
 
@@ -344,7 +333,7 @@ function animate() {
         drone.reached     = true;
         drone.vel.set(0, 0, 0);
         scene.remove(drone.group);
-        scene.remove(drone.trail.line);
+        APF.removeTrail(scene, drone.trail);
         arrivalCounter++;
         drone.arrivalRank = arrivalCounter;
         onDroneArrived(idx);
@@ -458,13 +447,11 @@ btnReset.addEventListener('click', function() {
     drone.group.position.copy(drone.cfg.start);
     drone.group.rotation.set(0, 0, 0);
     scene.add(drone.group);
-    scene.add(drone.trail.line);
+    APF.addTrail(scene, drone.trail);
     drone.pathLen   = 0;
     drone.stuckCtr  = 0;
     drone.prevPos.copy(drone.cfg.start);
-    drone.trail.points.length = 0;
-    drone.trail.geo = new THREE.BufferGeometry();
-    drone.trail.line.geometry = drone.trail.geo;
+    APF.clearTrail(drone.trail);
     drone.lastFatt  = drone.lastFrep = drone.lastFnet = 0;
 
     var el = document.getElementById('sDrone' + i);

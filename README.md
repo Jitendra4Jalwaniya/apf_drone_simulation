@@ -159,6 +159,7 @@ open index.html   # landing page with links to all three simulations
 - [x] Introduce a new version containing **harmonic potential fields** for smoother, curl-free navigation without local minima.
 - [ ] Create bigger drone swarm (16-50-100 drones) with single target, all hitting it in random order.
 - [ ] Turn the obstacles in interceptors.
+- [ ] Scan a room with lot of objects lying around, convert it into a real 3D model of the room, then ask the drone to navigate from one corner to another.
 
 ---
 

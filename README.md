@@ -1,6 +1,6 @@
-# APF Drone Simulation
+# Drone Path Planning Simulation
 
-A collection of real-time, interactive **3D simulations** of drones navigating through obstacles using the **Artificial Potential Field (APF)** algorithm — rendered entirely in the browser with [Three.js](https://threejs.org/).
+A collection of real-time, interactive **3D simulations** of drones navigating through obstacles using **Artificial Potential Fields (APF)** and **Harmonic Potential Fields (HPF)** — rendered entirely in the browser with [Three.js](https://threejs.org/).
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) ![Tech](https://img.shields.io/badge/built%20with-Three.js-black)
 
@@ -8,57 +8,96 @@ A collection of real-time, interactive **3D simulations** of drones navigating t
   <img src="screenshot.png" alt="APF Drone Simulation Screenshot" width="800"/>
 </p>
 
-> No build steps, no dependencies to install. Open any `.html` file in a modern browser and run instantly.
+> No build steps, no dependencies to install. Open `index.html` in a modern browser and run instantly.
 
 ---
 
 ## Simulations
 
-### 1. `apf_drone_sim.html` — Single Drone, Static Obstacles
-The original simulation. A single drone navigates from one corner of a 10×10×10 cube to the opposite corner, avoiding 10 static spherical obstacles using APF.
+Each simulation has an **APF / HPF toggle** in the controls bar so you can switch field types on the fly and compare trajectories side-by-side.
 
-### 2. `apf_with_moving_obstacles.html` — Single Drone, Moving Obstacles
-An enhanced version where **15 obstacles move continuously**, bouncing off the cube walls. The repulsive forces are significantly stronger (`K_REP = 40`) and the influence radius is wider (`D0 = 3.8`), making obstacle avoidance more dramatic. The drone reacts in real time to the changing environment.
+### 1. Static Obstacles
+A single drone navigates from one corner of a 10×10×10 cube to the opposite corner, avoiding 10 fixed spherical obstacles.
 
-### 3. `apf_drone_swarm.html` — 4-Drone Swarm, Moving Obstacles
-The most advanced simulation. **4 drones** launch simultaneously from 4 different corners of the cube and all navigate toward the same goal corner. Key behaviors:
-- **Fixed arrival order** — Alpha arrives first, followed by Beta, Gamma, and Delta, enforced by decreasing attractive gain (`K_ATT`) and max speed (`VMAX`) per drone.
-- **Drone-drone collision avoidance** — Drones repel each other using an inter-drone APF repulsion term (`K_DRONE_REP = 28`), preventing mid-air collisions.
-- **Goal capture zone** — Within 1.5 units of the goal, all repulsive forces are suspended so wall and drone-drone forces cannot trap a drone in a local minimum near the corner.
-- **Disappear on arrival** — Each drone is removed from the scene as soon as it reaches the goal.
-- **Per-drone HUD** — The status panel tracks each drone's state (Standby → Flying → #1–#4 Arrived) with arrival rank highlighted in gold, silver, bronze, and purple.
+### 2. Moving Obstacles
+**15 obstacles move continuously**, bouncing off the cube walls. The drone reacts in real time to the changing environment. The force panel visualises attractive, repulsive, and net force magnitudes each frame.
+
+### 3. Drone Swarm
+**4 drones** launch simultaneously from 4 different corners and all navigate toward the same goal. Key behaviours:
+- **Fixed arrival order** — Alpha first, then Beta, Gamma, Delta — enforced by decreasing attractive gain and max speed per drone.
+- **Drone-drone collision avoidance** — drones repel each other, preventing mid-air collisions.
+- **Goal capture zone** — repulsive forces suspended within 1.5 units of goal to prevent corner trapping.
+- **Disappear on arrival** — each drone is removed from the scene on reaching the goal.
+- **Per-drone HUD** — tracks Standby → Flying → #1–#4 Arrived, highlighted in gold / silver / bronze / purple.
 
 ---
 
-## The APF Algorithm
+## Path Planning Algorithms
 
-The **Artificial Potential Field** method is a reactive path planning approach. At each time step, virtual forces act on the drone and it moves in the direction of the net force — no pre-computed path needed.
+Both field types are reactive — at each time step, virtual forces act on the drone and it moves in the direction of the net force. No pre-computed path is needed.
 
 ```
 F_total = F_attractive + F_repulsive_obstacles + F_repulsive_walls [+ F_repulsive_drones]
 ```
 
-### Attractive Force
-The goal pulls the drone toward it using a conic-parabolic hybrid:
-- **Close range** (`d < D_STAR`): `F_att = K_ATT × (goal − position)`
-- **Far range** (`d ≥ D_STAR`): `F_att = K_ATT × D_STAR × normalize(goal − position)`
+---
 
-### Repulsive Force (Obstacles & Walls)
-Each obstacle pushes the drone away, but only within an influence radius `D0`:
+### Artificial Potential Field (APF)
+
+#### Attractive Force
+Conic-parabolic hybrid:
+- **Close range** (`d < D_STAR`): `F_att = K_ATT × (goal − pos)` — linear
+- **Far range** (`d ≥ D_STAR`): `F_att = K_ATT × D_STAR × normalize(goal − pos)` — capped
+
+#### Repulsive Force
+Each obstacle repels within a hard influence radius `D0`:
 ```
-F_rep = K_REP × (1/d − 1/D0) / d² × direction_away    [if d < D0]
+F_rep = K_REP × (1/d − 1/D0) / d²    [only if d < D0, else 0]
 ```
-Walls use the same formula with separate gain (`K_WALL`) and influence distance (`D_WALL`).
+Walls use the same formula with `K_WALL` and `D_WALL`.
 
-### Drone-Drone Repulsion (Swarm only)
-In the swarm simulation, each drone also repels other drones using the same formula with `K_DRONE_REP` and `D_DRONE`, preventing collisions while still letting all drones converge on the same goal.
-
-### Local Minima & Stuck Detection
-If a drone's velocity drops below a threshold for 40+ consecutive frames, a random perturbation force is injected to escape the local minimum.
+#### Local Minima & Stuck Detection
+If velocity drops below threshold for 40+ consecutive frames, a random perturbation is injected to escape the local minimum.
 
 ---
 
-## APF Parameters
+### Harmonic Potential Field (HPF)
+
+HPF is based on the **fundamental solution to Laplace's equation in 3D** (the Newtonian / Coulomb potential, `φ = 1/r`), whose gradient gives a **1/r² force** — the same law as gravity and electrostatics.
+
+Key properties:
+- **No hard cutoff radius** — every obstacle always contributes, giving globally smooth, curl-free navigation.
+- **Faster falloff (1/r²)** than APF's complex formula, so distant obstacles don't dominate.
+- **No spurious local minima** by construction (superposition of harmonic functions is harmonic).
+
+#### Attractive Force
+Constant magnitude toward goal (gradient of the linear potential `K·r`), ensuring goal-ward force at every position:
+```
+F_att = K_ATT × normalize(goal − pos)
+```
+
+#### Repulsive Force
+Coulomb 1/r² — globally aware, no cutoff:
+```
+F_rep = K_REP / d²    [for all d, where d = surface distance to obstacle]
+```
+Walls and drone-drone repulsion use the same formula.
+
+#### APF vs HPF at a glance
+
+| | APF | HPF |
+|---|---|---|
+| Repulsion formula | `K(1/d − 1/D₀)/d²` | `K/d²` (Coulomb) |
+| Influence radius | Hard cutoff at `D0` | None — global |
+| Force falloff | Complex, zero beyond `D0` | `1/d²`, always non-zero |
+| Local minima | Possible | Fewer by construction |
+| Trail colour | Cyan | Purple |
+
+---
+
+## Parameters
+
+### APF
 
 | Parameter | Moving Obstacles | Swarm | Description |
 |---|---|---|---|
@@ -70,6 +109,16 @@ If a drone's velocity drops below a threshold for 40+ consecutive frames, a rand
 | `K_DRONE_REP` | — | 28.0 | Drone-drone repulsion gain |
 | `D_DRONE` | — | 2.2 | Drone-drone influence radius |
 | `VMAX` | 0.18 | 0.22 / 0.17 / 0.14 / 0.11 | Max speed (per drone in swarm) |
+
+### HPF
+
+| Parameter | Moving Obstacles | Swarm | Description |
+|---|---|---|---|
+| `K_ATT` | 6.0 | 3.2–6.4 (× 2.0 mult) | Constant attractive gain |
+| `K_REP` | 3.0 | 3.0 | Coulomb repulsion gain (no cutoff) |
+| `K_WALL` | 1.5 | 1.5 | Coulomb wall repulsion gain |
+| `K_DRONE_REP` | — | 2.0 | Coulomb drone-drone repulsion gain |
+| `D_MIN` | 0.3 | 0.3 | Min surface distance (singularity guard) |
 
 ---
 
@@ -90,7 +139,7 @@ If a drone's velocity drops below a threshold for 40+ consecutive frames, a rand
 ```bash
 git clone https://github.com/Jitendra4Jalwaniya/apf_drone_simulation.git
 cd apf_drone_simulation
-open apf_drone_swarm.html   # or any of the other HTML files
+open index.html   # landing page with links to all three simulations
 ```
 
 > Requires any modern browser with WebGL support (Chrome, Firefox, Safari, Edge).
@@ -107,7 +156,7 @@ open apf_drone_swarm.html   # or any of the other HTML files
 
 ## TODO
 
-- [ ] Introduce a new version containing **harmonic potential fields** for smoother, curl-free navigation without local minima.
+- [x] Introduce a new version containing **harmonic potential fields** for smoother, curl-free navigation without local minima.
 - [ ] Create bigger drone swarm (16-50-100 drones) with single target, all hitting it in random order.
 - [ ] Turn the obstacles in interceptors.
 
@@ -121,4 +170,4 @@ The simulations were built with the help of **[Claude](https://claude.ai)**.
 
 ---
 
-<p align="center"><sub>Built with APF and artificial potential fields</sub></p>
+<p align="center"><sub>Built with APF and HPF — artificial and harmonic potential fields</sub></p>
